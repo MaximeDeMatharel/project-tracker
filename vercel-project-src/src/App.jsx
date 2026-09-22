@@ -68,7 +68,7 @@ async function airtableRequest(table, path = "", options = {}) {
   const res = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Airtable ${res.status}: ${errText.slice(0, 200)}`);
+    throw new Error(`Airtable ${res.status} sur "${table}"\nURL: ${url}\nBase: ${AIRTABLE_BASE || "(vide)"}\nToken présent: ${AIRTABLE_TOKEN ? "oui (" + AIRTABLE_TOKEN.slice(0, 6) + "…)" : "NON — variable manquante"}\n${errText.slice(0, 200)}`);
   }
   return res.json();
 }
