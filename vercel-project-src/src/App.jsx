@@ -21,23 +21,80 @@ if (typeof window !== "undefined" && !window.storage) {
   };
 }
 
-// ─── Appels IA directs vers l'API Anthropic (nécessite l'en-tête d'accès navigateur) ──
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-const __originalFetch = window.fetch.bind(window);
-window.fetch = function (url, options = {}) {
-  if (typeof url === "string" && url.indexOf("https://api.anthropic.com") === 0) {
-    return __originalFetch(url, {
-      ...options,
+// ─── Appel IA — un seul point d'entrée, indépendant du fournisseur ────────────
+// Pour changer de fournisseur demain : changer VITE_AI_PROVIDER + VITE_AI_API_KEY,
+// et au besoin ajouter une branche ci-dessous. Rien d'autre à toucher dans le code.
+const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || "anthropic";
+const AI_API_KEY = import.meta.env.VITE_AI_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+async function callAI(prompt, maxTokens = 300) {
+  if (AI_PROVIDER === "anthropic") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
       headers: {
-        ...(options.headers || {}),
-        "x-api-key": ANTHROPIC_KEY,
+        "Content-Type": "application/json",
+        "x-api-key": AI_API_KEY,
         "anthropic-version": "2023-06-01",
         "anthropic-dangerous-direct-browser-access": "true",
       },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`IA (Anthropic) ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || "";
   }
-  return __originalFetch(url, options);
-};
+
+  if (AI_PROVIDER === "openai") {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${AI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`IA (OpenAI) ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || "";
+  }
+
+  if (AI_PROVIDER === "mistral") {
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${AI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-small-latest",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`IA (Mistral) ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || "";
+  }
+
+  throw new Error(`Fournisseur IA inconnu: "${AI_PROVIDER}". Ajoute une branche dans callAI().`);
+}
 
 // ─── STORAGE KEY ──────────────────────────────────────────────────────────────
 const STORAGE_KEY = "project-tracker-v1";
@@ -1031,15 +1088,7 @@ function SubjectDetail({ project, onUpdate, onDelete, onDeleteActivity, incoming
       .map(e => `[${e.date}] ${ACTIVITY_TYPES[e.type]?.label || e.type}: ${e.text}`)
       .join("\n");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 150,
-          messages: [{
-            role: "user",
-            content: `Tu es un assistant Product Designer. Analyse cet historique de sujet et rédige UNE seule prochaine action concrète, courte et actionnnable (max 80 chars). Réponds uniquement avec le texte de l'action, sans ponctuation finale, sans guillemets.
+      const prompt = `Tu es un assistant Product Designer. Analyse cet historique de sujet et rédige UNE seule prochaine action concrète, courte et actionnnable (max 80 chars). Réponds uniquement avec le texte de l'action, sans ponctuation finale, sans guillemets.
 
 Sujet: ${project.title}
 Interlocuteurs: ${(project.stakeholders || []).join(", ") || "aucun"}
@@ -1047,17 +1096,8 @@ Statut: ${STATUS_CONFIG[project.status]?.label || project.status}
 Prochaine action actuelle: ${project.nextAction || "non définie"}
 
 Historique récent (du plus récent au plus ancien):
-${history}`
-          }]
-        })
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} — ${errText.slice(0, 150)}`);
-      }
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      const suggestion = data.content?.[0]?.text?.trim();
+${history}`;
+      const suggestion = await callAI(prompt, 150);
       if (suggestion) {
         patch({ nextAction: suggestion });
       } else {
@@ -1186,15 +1226,7 @@ ${history}`
       .map(e => `[${e.date}] ${ACTIVITY_TYPES[e.type]?.label || e.type}: ${e.text}`)
       .join("\n");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          messages: [{
-            role: "user",
-            content: `Tu es un Product Designer. Rédige un message court et professionnel à envoyer pour avancer sur ce sujet.
+      const prompt = `Tu es un Product Designer. Rédige un message court et professionnel à envoyer pour avancer sur ce sujet.
 
 Sujet: ${project.title}
 Interlocuteur(s): ${(project.stakeholders || []).join(", ") || "non précisé"}
@@ -1210,17 +1242,8 @@ Le message doit:
 - Être naturel et professionnel
 - Ne pas inclure d'objet mail ni de formule de politesse finale
 
-Réponds uniquement avec le corps du message, prêt à copier-coller.`
-          }]
-        })
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} — ${errText.slice(0, 150)}`);
-      }
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      const text = data.content?.[0]?.text?.trim();
+Réponds uniquement avec le corps du message, prêt à copier-coller.`;
+      const text = await callAI(prompt, 300);
       if (text) {
         setGenMessage(text);
         saveGenMessage(text);
@@ -1250,27 +1273,15 @@ Réponds uniquement avec le corps du message, prêt à copier-coller.`
     let entryText = project.nextAction;
     let entryType = "update";
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 150,
-          messages: [{
-            role: "user",
-            content: `Analyse ce message qui vient d'être envoyé et cette prochaine action prévue. Détermine le type d'activité le plus approprié pour l'historique du projet, et reformule au passé.
+      const prompt = `Analyse ce message qui vient d'être envoyé et cette prochaine action prévue. Détermine le type d'activité le plus approprié pour l'historique du projet, et reformule au passé.
 
 Message envoyé: "${genMessage || "(aucun message, se baser sur l'action)"}"
 Action prévue: "${project.nextAction}"
 
 Types possibles: "relance" (rappel à quelqu'un qui n'a pas répondu), "feedback" (retour ou question reçue), "validation" (demande de validation/go), "design" (envoi d'un livrable design/écrans), "action" (action interne ou call), "update" (mise à jour générale).
 
-Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text": "reformulation courte au passé, max 100 chars, sans ponctuation finale ni guillemets"}`
-          }]
-        })
-      });
-      const data = await res.json();
-      const raw = data.content?.[0]?.text?.trim() || "";
+Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text": "reformulation courte au passé, max 100 chars, sans ponctuation finale ni guillemets"}`;
+      const raw = await callAI(prompt, 150);
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       if (parsed.text) entryText = parsed.text;
       if (parsed.type && ACTIVITY_TYPES[parsed.type]) entryType = parsed.type;
@@ -1907,15 +1918,7 @@ function NextActionItem({ project, onNavigate, onUpdateProject, isLast }) {
       .map(e => `[${e.date}] ${ACTIVITY_TYPES[e.type]?.label || e.type}: ${e.text}`)
       .join("\n");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          messages: [{
-            role: "user",
-            content: `Tu es un Product Designer. Rédige un message court et professionnel à envoyer pour avancer sur ce sujet.
+      const prompt = `Tu es un Product Designer. Rédige un message court et professionnel à envoyer pour avancer sur ce sujet.
 
 Sujet: ${project.title}
 Interlocuteur(s): ${(project.stakeholders || []).join(", ") || "non précisé"}
@@ -1931,17 +1934,8 @@ Le message doit:
 - Être naturel et professionnel
 - Ne pas inclure d'objet mail ni de formule de politesse finale
 
-Réponds uniquement avec le corps du message, prêt à copier-coller.`
-          }]
-        })
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} — ${errText.slice(0, 150)}`);
-      }
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      const text = data.content?.[0]?.text?.trim();
+Réponds uniquement avec le corps du message, prêt à copier-coller.`;
+      const text = await callAI(prompt, 300);
       if (text) {
         setMessage(text);
         saveMessage(text);
@@ -1966,27 +1960,15 @@ Réponds uniquement avec le corps du message, prêt à copier-coller.`
     let entryText = project.nextAction;
     let entryType = "update";
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 150,
-          messages: [{
-            role: "user",
-            content: `Analyse ce message qui vient d'être envoyé et cette prochaine action prévue. Détermine le type d'activité le plus approprié pour l'historique du projet, et reformule au passé.
+      const prompt = `Analyse ce message qui vient d'être envoyé et cette prochaine action prévue. Détermine le type d'activité le plus approprié pour l'historique du projet, et reformule au passé.
 
 Message envoyé: "${message || "(aucun message, se baser sur l'action)"}"
 Action prévue: "${project.nextAction}"
 
 Types possibles: "relance" (rappel à quelqu'un qui n'a pas répondu), "feedback" (retour ou question reçue), "validation" (demande de validation/go), "design" (envoi d'un livrable design/écrans), "action" (action interne ou call), "update" (mise à jour générale).
 
-Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text": "reformulation courte au passé, max 100 chars, sans ponctuation finale ni guillemets"}`
-          }]
-        })
-      });
-      const data = await res.json();
-      const raw = data.content?.[0]?.text?.trim() || "";
+Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text": "reformulation courte au passé, max 100 chars, sans ponctuation finale ni guillemets"}`;
+      const raw = await callAI(prompt, 150);
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       if (parsed.text) entryText = parsed.text;
       if (parsed.type && ACTIVITY_TYPES[parsed.type]) entryType = parsed.type;
@@ -2128,15 +2110,7 @@ function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdatePro
       .join("\n");
     const lastWaiting = sortEntries(project.timeline).find(e => e.waitingTag);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          messages: [{
-            role: "user",
-            content: `Tu es un Product Designer. Rédige un message de relance court, professionnel et personnalisé à envoyer par mail ou Teams.
+      const prompt = `Tu es un Product Designer. Rédige un message de relance court, professionnel et personnalisé à envoyer par mail ou Teams.
 
 Sujet: ${project.title}
 Interlocuteur(s): ${(project.stakeholders || []).join(", ") || "non précisé"}
@@ -2153,17 +2127,8 @@ Le message doit:
 - Être direct et naturel, pas trop formel
 - Ne pas inclure d'objet mail ni de formule de politesse finale
 
-Réponds uniquement avec le corps du message, prêt à copier-coller.`
-          }]
-        })
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} — ${errText.slice(0, 150)}`);
-      }
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      const text = data.content?.[0]?.text?.trim();
+Réponds uniquement avec le corps du message, prêt à copier-coller.`;
+      const text = await callAI(prompt, 300);
       if (text) { setRelance(text); saveRelance(text); }
       else throw new Error("Réponse vide de l'IA");
     } catch (e) {
@@ -2189,24 +2154,12 @@ Réponds uniquement avec le corps du message, prêt à copier-coller.`
     const lastWaiting = sortEntries(project.timeline).find(e => e.waitingTag);
     let entryText = `Relance envoyée${lastWaiting ? ` — ${lastWaiting.text}` : ""}`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 100,
-          messages: [{
-            role: "user",
-            content: `Rédige une courte entrée d'historique (max 100 chars, pas de ponctuation finale, pas de guillemets) qui décrit qu'une relance vient d'être envoyée sur ce point précis.
+      const prompt = `Rédige une courte entrée d'historique (max 100 chars, pas de ponctuation finale, pas de guillemets) qui décrit qu'une relance vient d'être envoyée sur ce point précis.
 
 Point en attente: "${lastWaiting?.text || "non précisé"}"
 
-Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds uniquement avec le texte.`
-          }]
-        })
-      });
-      const data = await res.json();
-      const reformulated = data.content?.[0]?.text?.trim();
+Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds uniquement avec le texte.`;
+      const reformulated = await callAI(prompt, 100);
       if (reformulated) entryText = reformulated;
     } catch (e) { /* fallback sur le texte par défaut si l'IA échoue */ }
 
