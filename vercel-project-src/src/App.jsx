@@ -96,9 +96,6 @@ async function callAI(prompt, maxTokens = 300) {
   throw new Error(`Fournisseur IA inconnu: "${AI_PROVIDER}". Ajoute une branche dans callAI().`);
 }
 
-// ─── STORAGE KEY ──────────────────────────────────────────────────────────────
-const STORAGE_KEY = "project-tracker-v1";
-
 // ─── AIRTABLE CONFIG ──────────────────────────────────────────────────────────
 const AIRTABLE_BASE = import.meta.env.VITE_AIRTABLE_BASE_ID;
 const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
@@ -199,6 +196,7 @@ function activityToAirtableFields(entry, sujetRecordId) {
     "Texte": entry.text || "",
     "Date": entry.date || today(),
     "En attente de retour": !!entry.waitingTag,
+    "Temps passé": entry.timeSpent || 0,
   };
   if (entry.type && TYPE_TO_AT[entry.type]) fields["Type"] = TYPE_TO_AT[entry.type];
   return fields;
@@ -212,9 +210,13 @@ function airtableFieldsToActivity(record) {
     date: f["Date"] || "",
     text: f["Texte"] || "",
     waitingTag: !!f["En attente de retour"],
+    timeSpent: f["Temps passé"] || 0,
     createdAt: record.createdTime,
   };
 }
+
+// ─── STORAGE KEY ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = "project-tracker-v1";
 
 // ─── SEED DATA (chargé UNE seule fois si le storage est vide) ────────────────
 const SEED_PROJECTS = [
@@ -448,6 +450,10 @@ const NAV_ITEMS = [
   {
     id: "kanban", label: "Kanban", available: true,
     icon: (a) => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="3" width="4" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill={a?"currentColor":"none"} fillOpacity={a?0.2:0}/><rect x="7" y="3" width="4" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill={a?"currentColor":"none"} fillOpacity={a?0.2:0}/><rect x="12.5" y="3" width="4" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill={a?"currentColor":"none"} fillOpacity={a?0.2:0}/></svg>,
+  },
+  {
+    id: "activity", label: "Activité", available: true,
+    icon: (a) => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" fill={a?"currentColor":"none"} fillOpacity={a?0.15:0}/><path d="M9 5v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
     id: "settings", label: "Réglages", available: false,
@@ -2183,7 +2189,7 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
   }
 
   return (
-    <div style={{ paddingBottom: isLast ? 0 : 14, marginBottom: isLast ? 0 : 14, borderBottom: isLast ? "none" : `1px solid ${T.border}` }}>
+    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 16px" }}>
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -2250,14 +2256,171 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
 }
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
-function DashboardPage({ projects, onNavigate, onUpdateProject }) {
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+// ─── ACTIVITY PAGE ────────────────────────────────────────────────────────────
+function ActivityPage({ projects, onNavigate, onUpdateProject }) {
+  const [expandedWeeks, setExpandedWeeks] = useState(null); // null = pas encore initialisé
 
-  // Week bounds (Mon–Sun)
-  const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek); weekStart.setHours(0,0,0,0);
-  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  function getWeekStart(dateStr) {
+    const d = new Date(dateStr);
+    const dow = d.getDay() === 0 ? 6 : d.getDay() - 1; // lundi = 0
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - dow);
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString().slice(0, 10);
+  }
+  const currentWeekStart = getWeekStart(today());
+
+  const allEntries = useMemo(() => {
+    return projects
+      .flatMap(p => p.timeline.map(e => ({ ...e, project: p })))
+      .filter(e => e.type !== "relance" && e.type !== "feedback")
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        const tA = a.createdAt || a.id || "";
+        const tB = b.createdAt || b.id || "";
+        return tB.localeCompare(tA);
+      });
+  }, [projects]);
+
+  const filtered = allEntries;
+
+  const grouped = useMemo(() => {
+    const groups = [];
+    let currentWeek = null;
+    for (const e of filtered) {
+      const weekStart = getWeekStart(e.date);
+      if (weekStart !== currentWeek) {
+        currentWeek = weekStart;
+        groups.push({ weekStart, entries: [], seenProjects: new Set() });
+      }
+      const group = groups[groups.length - 1];
+      // Déduplication : une seule entrée par sujet et par semaine (la plus récente, déjà en tête grâce au tri)
+      if (group.seenProjects.has(e.project.id)) continue;
+      group.seenProjects.add(e.project.id);
+      group.entries.push(e);
+    }
+    return groups;
+  }, [filtered]);
+
+  // Par défaut, seule la semaine actuelle est dépliée
+  useEffect(() => {
+    if (expandedWeeks === null && grouped.length > 0) {
+      setExpandedWeeks(new Set([currentWeekStart]));
+    }
+  }, [grouped, expandedWeeks, currentWeekStart]);
+
+  function toggleWeek(weekStart) {
+    setExpandedWeeks(prev => {
+      const next = new Set(prev || []);
+      if (next.has(weekStart)) next.delete(weekStart);
+      else next.add(weekStart);
+      return next;
+    });
+  }
+
+  function formatWeekLabel(weekStart) {
+    const monday = new Date(weekStart);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const thisMonday = new Date(getWeekStart(today()));
+    const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
+    if (weekStart === thisMonday.toISOString().slice(0, 10)) return "Cette semaine";
+    if (weekStart === lastMonday.toISOString().slice(0, 10)) return "Semaine dernière";
+    const sameMonth = monday.getMonth() === sunday.getMonth();
+    const startStr = monday.toLocaleDateString("fr-FR", { day: "numeric", month: sameMonth ? undefined : "short" });
+    const endStr = sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+    return `${startStr} — ${endStr}`;
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Activité</div>
+        <div style={{ fontSize: 11, color: T.textMuted }}>{filtered.length} entrée{filtered.length > 1 ? "s" : ""}</div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+        {grouped.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "60px 0" }}>Aucune activité trouvée</div>
+        ) : (
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+            {grouped.map((group, gi) => {
+              const isExpanded = expandedWeeks?.has(group.weekStart);
+              const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.timeSpent || 0), 0));
+              return (
+              <div key={group.weekStart} style={{ marginBottom: 24 }}>
+                <button onClick={() => toggleWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", padding: 0, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}>
+                  <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: isExpanded ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IC.Chevron /></span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                    {formatWeekLabel(group.weekStart)}
+                  </span>
+                  <span style={{ fontSize: 10, color: T.textXMuted, fontWeight: 500 }}>· {group.entries.length}</span>
+                  <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, marginLeft: "auto" }}>{totalDays} j</span>
+                </button>
+                {isExpanded && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {group.entries.map(e => {
+                    const cfg = ACTIVITY_TYPES[e.type] || ACTIVITY_TYPES.note;
+                    const platforms = e.project.platforms || [];
+                    const timeSpent = e.timeSpent || 0;
+                    const weekTotal = group.entries.reduce((sum, en) => sum + (en.timeSpent || 0), 0);
+                    const atCap = weekTotal >= 5;
+
+                    function adjustTime(delta) {
+                      const weekTotal = group.entries.reduce((sum, en) => sum + (en.timeSpent || 0), 0);
+                      if (delta > 0 && weekTotal >= 5) return; // Plafond de 5 jours par semaine
+                      const next = Math.max(0, Math.round((timeSpent + delta) * 100) / 100);
+                      onUpdateProject(e.project.id, {
+                        timeline: e.project.timeline.map(te => te.id === e.id ? { ...te, timeSpent: next } : te),
+                      });
+                    }
+
+                    return (
+                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 90px 10px 12px", cursor: "pointer" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{e.project.title}</span>
+                          {platforms.slice(0, 2).map(pl => {
+                            const pc = PLATFORM_COLORS[pl] || T.futur;
+                            return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
+                          })}
+                          {e.project.jiraKey && <span style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace" }}>{e.project.jiraKey}</span>}
+                          {e.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5 }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 6 }}>{cfg.label}</span>
+                          {e.text}
+                        </div>
+                        <div style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 4, background: T.bgHover, borderRadius: 999, padding: "3px 4px" }} onClick={ev => ev.stopPropagation()}>
+                          <button onClick={() => adjustTime(-0.25)} aria-label="Retirer un quart de jour" style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: T.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
+                            onMouseEnter={ev => { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; }}
+                            onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textSecondary; }}>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                          </button>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, minWidth: 18, textAlign: "center" }}>{timeSpent}</span>
+                          <button onClick={() => adjustTime(0.25)} disabled={atCap} aria-label="Ajouter un quart de jour" title={atCap ? "Plafond de 5 jours atteint pour cette semaine" : "Ajouter un quart de jour"} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: atCap ? T.textXMuted : T.textSecondary, cursor: atCap ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
+                            onMouseEnter={ev => { if (!atCap) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; } }}
+                            onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = atCap ? T.textXMuted : T.textSecondary; }}>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5v7M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                )}
+              </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
+function DashboardPage({ projects, onNavigate, onUpdateProject }) {
+  const [waitingCollapsed, setWaitingCollapsed] = useState(false);
+  const now = new Date();
 
   // ── Stats ──
   const counts = Object.fromEntries(Object.keys(STATUS_CONFIG).map(k => [k, projects.filter(p => p.status === k).length]));
@@ -2283,27 +2446,6 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
       const pb = priorityOrder[b.priority] ?? 3;
       return pa - pb;
     });
-
-  // ── Recent activity this week ──
-  const recentEntries = (() => {
-    const sorted = projects
-      .flatMap(p => p.timeline.map(e => ({ ...e, project: p })))
-      .filter(e => e.date >= weekStartStr)
-      .sort((a, b) => {
-        if (a.date !== b.date) return b.date.localeCompare(a.date);
-        const tA = a.createdAt || a.id || "";
-        const tB = b.createdAt || b.id || "";
-        return tB.localeCompare(tA);
-      });
-    const seenProjects = new Set();
-    const deduped = [];
-    for (const e of sorted) {
-      if (seenProjects.has(e.project.id)) continue;
-      seenProjects.add(e.project.id);
-      deduped.push(e);
-    }
-    return deduped.slice(0, 20);
-  })();
 
   function waitingBadgeColor(days) {
     if (days <= 3)  return { color: "#D97706", bg: "#FEF3C7" };
@@ -2357,7 +2499,7 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
         </div>
 
         {/* ── Row 2 : Next actions + Waiting + Recent activity ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
 
           {/* Prochaines actions */}
           <div>
@@ -2376,39 +2518,25 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
           </div>
 
           {/* En attente */}
-          <Card>
-            <SectionTitle>En attente de retour · {waiting.length}</SectionTitle>
-            {waiting.length === 0 ? (
-              <div style={{ fontSize: 13, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Aucune attente en cours 🎉</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                {waiting.map(({ project: p, days }, idx) => (
-                  <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={idx === waiting.length - 1} />
-                ))}
-              </div>
+          <div>
+            <button onClick={() => setWaitingCollapsed(v => !v)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", padding: 0, marginBottom: 12, cursor: "pointer" }}>
+              <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: waitingCollapsed ? "rotate(-90deg)" : "none", transition: "transform 0.15s" }}><IC.Chevron /></span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                En attente de retour · {waiting.length}
+              </span>
+            </button>
+            {!waitingCollapsed && (
+              waiting.length === 0 ? (
+                <div style={{ fontSize: 13, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Aucune attente en cours 🎉</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {waiting.map(({ project: p, days }) => (
+                    <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
+                  ))}
+                </div>
+              )
             )}
-          </Card>
-
-          {/* ── Activité récente ── */}
-          <Card>
-            <SectionTitle>Activité cette semaine · {recentEntries.length} entrée{recentEntries.length > 1 ? "s" : ""}</SectionTitle>
-            {recentEntries.length === 0 ? (
-              <div style={{ fontSize: 13, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Aucune activité cette semaine</div>
-            ) : (
-              <div style={{ display: "grid", gap: 0 }}>
-                {recentEntries.map((e, i) => (
-                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < recentEntries.length - 1 ? `1px solid ${T.border}` : "none", cursor: "pointer", overflow: "hidden" }}
-                      onClick={() => onNavigate("projects", e.project.id)}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{e.project.title}</span>
-                      {e.project.jiraKey && (
-                        <span style={{ fontSize: 11, color: T.accent, fontFamily: "monospace", flexShrink: 0, whiteSpace: "nowrap" }}>{e.project.jiraKey}</span>
-                      )}
-                      <span style={{ fontSize: 11, color: T.textMuted, flexShrink: 0, whiteSpace: "nowrap" }}>{formatDate(e.date)}</span>
-                    </div>
-                ))}
-              </div>
-            )}
-          </Card>
+          </div>
 
         </div>
 
@@ -2515,6 +2643,7 @@ export default function App() {
     }
   }
 
+
   // ── Actions ──
   function updateProject(id, changes) {
     const prevProject = projects.find(p => p.id === id);
@@ -2558,7 +2687,6 @@ export default function App() {
     }
   }
 
-  // ── Loading state ──
   // ── Loading state ──
   if (projects === null) {
     return (
@@ -2610,7 +2738,9 @@ export default function App() {
               const a = document.createElement("a");
               a.href = url;
               a.download = `project-tracker-backup-${today()}.json`;
+              document.body.appendChild(a);
               a.click();
+              document.body.removeChild(a);
               URL.revokeObjectURL(url);
             }}
             title="Exporter toutes les données en JSON"
@@ -2660,6 +2790,7 @@ export default function App() {
           </label>
         </div>
 
+
         {/* Save indicator */}
         <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
           <div style={{
@@ -2674,6 +2805,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", overflow: "hidden", background: T.bg, minWidth: 0 }}>
         {activePage === "projects"  && <SubjectsPage projects={projects} onUpdate={updateProject} onAdd={addProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} targetProjectId={targetProjectId} onTargetConsumed={() => setTargetProjectId(null)} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
         {activePage === "kanban"    && <KanbanPage projects={projects} onUpdate={updateProject} />}
+        {activePage === "activity"  && <ActivityPage projects={projects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "dashboard" && <DashboardPage projects={projects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "settings"  && <PlaceholderPage label="Réglages" />}
       </div>
