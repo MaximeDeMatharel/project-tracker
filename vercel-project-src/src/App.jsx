@@ -97,6 +97,7 @@ const AIRTABLE_BASE = import.meta.env.VITE_AIRTABLE_BASE_ID;
 const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
 const AIRTABLE_TABLE_SUJET = "Sujet";
 const AIRTABLE_TABLE_ACTIVITE = "Activité";
+const AIRTABLE_TABLE_TEMPS = "Temps";
 
 const STATUS_TO_AT = { in_progress: "En cours", waiting: "En attente", blocked: "Bloqué", futur: "Futur", done: "Terminer" };
 const AT_TO_STATUS = Object.fromEntries(Object.entries(STATUS_TO_AT).map(([k, v]) => [v, k]));
@@ -191,7 +192,6 @@ function activityToAirtableFields(entry, sujetRecordId) {
     "Texte": entry.text || "",
     "Date": entry.date || today(),
     "En attente de retour": !!entry.waitingTag,
-    "Temps passé": entry.timeSpent || 0,
   };
   if (entry.type && TYPE_TO_AT[entry.type]) fields["Type"] = TYPE_TO_AT[entry.type];
   return fields;
@@ -205,7 +205,6 @@ function airtableFieldsToActivity(record) {
     date: f["Date"] || "",
     text: f["Texte"] || "",
     waitingTag: !!f["En attente de retour"],
-    timeSpent: f["Temps passé"] || 0,
     createdAt: record.createdTime,
   };
 }
@@ -2383,7 +2382,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
             {grouped.map((group, gi) => {
               const isExpanded = expandedWeeks?.has(group.weekStart);
-              const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.timeSpent || 0), 0));
+              const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.project.weeklyTime?.[group.weekStart] || 0), 0));
               const pickerOpen = addPickerWeek === group.weekStart;
               return (
               <div key={group.weekStart} style={{ marginBottom: 24 }}>
@@ -2402,16 +2401,14 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                   {group.entries.map(e => {
                     const cfg = ACTIVITY_TYPES[e.type] || ACTIVITY_TYPES.note;
                     const platforms = e.project.platforms || [];
-                    const timeSpent = e.timeSpent || 0;
-                    const weekTotal = group.entries.reduce((sum, en) => sum + (en.timeSpent || 0), 0);
-                    const atCap = weekTotal >= 5;
+                    const timeSpent = e.project.weeklyTime?.[group.weekStart] || 0;
+                    const atCap = totalDays >= 5;
 
                     function adjustTime(delta) {
-                      const weekTotal = group.entries.reduce((sum, en) => sum + (en.timeSpent || 0), 0);
-                      if (delta > 0 && weekTotal >= 5) return; // Plafond de 5 jours par semaine
+                      if (delta > 0 && totalDays >= 5) return; // Plafond de 5 jours par semaine
                       const next = Math.max(0, Math.round((timeSpent + delta) * 100) / 100);
                       onUpdateProject(e.project.id, {
-                        timeline: e.project.timeline.map(te => te.id === e.id ? { ...te, timeSpent: next } : te),
+                        weeklyTime: { ...(e.project.weeklyTime || {}), [group.weekStart]: next },
                       });
                     }
 
@@ -2729,9 +2726,10 @@ export default function App() {
   useEffect(() => {
     async function load() {
       try {
-        const [sujetRecords, activiteRecords] = await Promise.all([
+        const [sujetRecords, activiteRecords, tempsRecords] = await Promise.all([
           airtableListAll(AIRTABLE_TABLE_SUJET),
           airtableListAll(AIRTABLE_TABLE_ACTIVITE),
+          airtableListAll(AIRTABLE_TABLE_TEMPS),
         ]);
 
         const projectsById = {};
@@ -2742,6 +2740,20 @@ export default function App() {
           const activity = airtableFieldsToActivity(r);
           linked.forEach(sujetId => {
             if (projectsById[sujetId]) projectsById[sujetId].timeline.push(activity);
+          });
+        });
+
+        tempsRecords.forEach(r => {
+          const f = r.fields || {};
+          const linked = f["Sujet"] || [];
+          const semaine = f["Semaine"];
+          const jours = f["Temps travaillé"] || 0;
+          linked.forEach(sujetId => {
+            if (!projectsById[sujetId] || !semaine) return;
+            if (!projectsById[sujetId].weeklyTime) projectsById[sujetId].weeklyTime = {};
+            if (!projectsById[sujetId]._weeklyTimeRecordIds) projectsById[sujetId]._weeklyTimeRecordIds = {};
+            projectsById[sujetId].weeklyTime[semaine] = jours;
+            projectsById[sujetId]._weeklyTimeRecordIds[semaine] = r.id;
           });
         });
 
@@ -2759,7 +2771,7 @@ export default function App() {
   // ── Diff-based sync to Airtable : chaque champ modifié part vers la bonne table ──
   async function syncProjectChange(prevProject, id, changes) {
     try {
-      const { timeline, ...projectChanges } = changes;
+      const { timeline, weeklyTime, ...projectChanges } = changes;
       if (Object.keys(projectChanges).length > 0) {
         const merged = { ...prevProject, ...projectChanges };
         await airtableUpdate(AIRTABLE_TABLE_SUJET, id, projectToAirtableFields(merged));
@@ -2786,6 +2798,29 @@ export default function App() {
           }
         }
       }
+
+      // ── Temps passé : une ligne par sujet + par semaine dans la table "Temps" ──
+      if (weeklyTime) {
+        const prevWT = prevProject.weeklyTime || {};
+        const recordIds = prevProject._weeklyTimeRecordIds || {};
+        for (const week of Object.keys(weeklyTime)) {
+          if (weeklyTime[week] === prevWT[week]) continue; // pas de changement pour cette semaine
+          if (recordIds[week]) {
+            await airtableUpdate(AIRTABLE_TABLE_TEMPS, recordIds[week], { "Temps travaillé": weeklyTime[week] });
+          } else {
+            const created = await airtableCreate(AIRTABLE_TABLE_TEMPS, {
+              "Sujet": [id],
+              "Semaine": week,
+              "Temps travaillé": weeklyTime[week],
+            });
+            setProjects(prev => prev.map(p => p.id === id
+              ? { ...p, _weeklyTimeRecordIds: { ...(p._weeklyTimeRecordIds || {}), [week]: created.id } }
+              : p
+            ));
+          }
+        }
+      }
+
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
     } catch (e) {
