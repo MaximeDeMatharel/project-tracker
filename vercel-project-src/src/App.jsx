@@ -1656,7 +1656,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0 }}>
       {/* ── List sidebar ── */}
-      <div style={{ width: 280, flexShrink: 0, background: T.bgSidebar, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ width: 420, flexShrink: 0, background: T.bgSidebar, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 14px 10px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
