@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 
 // ─── window.storage shim (remplace l'API artifact-preview par localStorage) ──
-// Utilisé uniquement pour des données secondaires (brouillons de messages IA) —
-// les données principales (Sujets/Activités) passent par Airtable.
 if (typeof window !== "undefined" && !window.storage) {
   window.storage = {
     async get(key) {
@@ -22,8 +20,6 @@ if (typeof window !== "undefined" && !window.storage) {
 }
 
 // ─── Appel IA — un seul point d'entrée, indépendant du fournisseur ────────────
-// Pour changer de fournisseur demain : changer VITE_AI_PROVIDER + VITE_AI_API_KEY,
-// et au besoin ajouter une branche ci-dessous. Rien d'autre à toucher dans le code.
 const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || "anthropic";
 const AI_API_KEY = import.meta.env.VITE_AI_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY;
 
@@ -111,7 +107,6 @@ const AT_TO_PRIORITY = Object.fromEntries(Object.entries(PRIORITY_TO_AT).map(([k
 const TYPE_TO_AT = { design: "Design", relance: "Relance", feedback: "Feedback", validation: "Validation", update: "Update", action: "Action", note: "Note" };
 const AT_TO_TYPE = Object.fromEntries(Object.entries(TYPE_TO_AT).map(([k, v]) => [v, k]));
 
-// "STB Less" côté outil == "STBLess" (sans espace) côté Airtable
 const PLATFORM_TO_AT = { TV: "TV", Web: "Web", Mobile: "Mobile", STB: "STB", "STB Less": "STBLess", Connect: "Connect", Other: "Other" };
 const AT_TO_PLATFORM = Object.fromEntries(Object.entries(PLATFORM_TO_AT).map(([k, v]) => [v, k]));
 
@@ -1585,7 +1580,7 @@ function PlaceholderPage({ label }) {
 function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, targetProjectId, onTargetConsumed, incomingSync, onSyncConsumed }) {
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("in_progress");
   const [filterPlatform, setFilterPlatform] = useState("all");
   const [showAddProject, setShowAddProject] = useState(false);
 
@@ -2257,8 +2252,45 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 // ─── ACTIVITY PAGE ────────────────────────────────────────────────────────────
+// ─── AJOUT RAPIDE PAR SEMAINE : choisir un sujet, reprend son dernier commentaire ──
+function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose }) {
+  const sortedProjects = [...projects].sort((a, b) => a.title.localeCompare(b.title));
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, width: 840, maxWidth: "90vw", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.14)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Choisir un sujet</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>
+        </div>
+        <div style={{ overflowY: "auto" }}>
+          {sortedProjects.length === 0 ? (
+            <div style={{ padding: 20, fontSize: 12, color: T.textMuted, textAlign: "center" }}>Tous les sujets sont déjà présents cette semaine</div>
+          ) : sortedProjects.map(p => {
+            const last = sortEntries(p.timeline)[0];
+            return (
+              <button key={p.id} onClick={() => onAdd(p, last)} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 16px", background: "none", border: "none", borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}
+                onMouseEnter={ev => ev.currentTarget.style.background = T.bgHover}
+                onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{p.title}</span>
+                  {p.jiraKey && <span style={{ fontSize: 11, color: T.textMuted, fontFamily: "monospace" }}>{p.jiraKey}</span>}
+                </div>
+                <div style={{ fontSize: 12, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {last ? last.text : "Aucune activité existante"}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityPage({ projects, onNavigate, onUpdateProject }) {
   const [expandedWeeks, setExpandedWeeks] = useState(null); // null = pas encore initialisé
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(null); // { entry } à confirmer
+  const [addPickerWeek, setAddPickerWeek] = useState(null); // weekStart pour lequel le sélecteur est ouvert
 
   function getWeekStart(dateStr) {
     const d = new Date(dateStr);
@@ -2323,20 +2355,25 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
     const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
     const thisMonday = new Date(getWeekStart(today()));
     const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
-    if (weekStart === thisMonday.toISOString().slice(0, 10)) return "Cette semaine";
-    if (weekStart === lastMonday.toISOString().slice(0, 10)) return "Semaine dernière";
+
+    // Numéro de semaine calculé par rapport à la référence : semaine actuelle = 39
+    const weeksDiff = Math.round((monday - thisMonday) / (7 * 24 * 60 * 60 * 1000));
+    const weekNumber = 39 + weeksDiff;
+
+    if (weekStart === thisMonday.toISOString().slice(0, 10)) return `Cette semaine · S${weekNumber}`;
+    if (weekStart === lastMonday.toISOString().slice(0, 10)) return `Semaine dernière · S${weekNumber}`;
     const sameMonth = monday.getMonth() === sunday.getMonth();
     const startStr = monday.toLocaleDateString("fr-FR", { day: "numeric", month: sameMonth ? undefined : "short" });
     const endStr = sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-    return `${startStr} — ${endStr}`;
+    return `${startStr} — ${endStr}  ·  S${weekNumber}`;
   }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
       <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Activité</div>
-        <div style={{ fontSize: 11, color: T.textMuted }}>{filtered.length} entrée{filtered.length > 1 ? "s" : ""}</div>
       </div>
+
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
         {grouped.length === 0 ? (
@@ -2346,16 +2383,19 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
             {grouped.map((group, gi) => {
               const isExpanded = expandedWeeks?.has(group.weekStart);
               const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.timeSpent || 0), 0));
+              const pickerOpen = addPickerWeek === group.weekStart;
               return (
               <div key={group.weekStart} style={{ marginBottom: 24 }}>
-                <button onClick={() => toggleWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", padding: 0, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}>
-                  <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: isExpanded ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IC.Chevron /></span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
-                    {formatWeekLabel(group.weekStart)}
-                  </span>
-                  <span style={{ fontSize: 10, color: T.textXMuted, fontWeight: 500 }}>· {group.entries.length}</span>
-                  <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, marginLeft: "auto" }}>{totalDays} j</span>
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}` }}>
+                  <button onClick={() => toggleWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                    <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: isExpanded ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IC.Chevron /></span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                      {formatWeekLabel(group.weekStart)}
+                    </span>
+                    <span style={{ fontSize: 10, color: T.textXMuted, fontWeight: 500 }}>· {group.entries.length}</span>
+                  </button>
+                  <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, flexShrink: 0 }}>{totalDays} j</span>
+                </div>
                 {isExpanded && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {group.entries.map(e => {
@@ -2375,7 +2415,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                     }
 
                     return (
-                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 90px 10px 12px", cursor: "pointer" }}>
+                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 108px 10px 12px", cursor: "pointer" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{e.project.title}</span>
                           {platforms.slice(0, 2).map(pl => {
@@ -2389,22 +2429,64 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           <span style={{ fontSize: 10, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 6 }}>{cfg.label}</span>
                           {e.text}
                         </div>
-                        <div style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 4, background: T.bgHover, borderRadius: 999, padding: "3px 4px" }} onClick={ev => ev.stopPropagation()}>
-                          <button onClick={() => adjustTime(-0.25)} aria-label="Retirer un quart de jour" style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: T.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
-                            onMouseEnter={ev => { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; }}
-                            onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textSecondary; }}>
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-                          </button>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, minWidth: 18, textAlign: "center" }}>{timeSpent}</span>
-                          <button onClick={() => adjustTime(0.25)} disabled={atCap} aria-label="Ajouter un quart de jour" title={atCap ? "Plafond de 5 jours atteint pour cette semaine" : "Ajouter un quart de jour"} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: atCap ? T.textXMuted : T.textSecondary, cursor: atCap ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
-                            onMouseEnter={ev => { if (!atCap) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; } }}
-                            onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = atCap ? T.textXMuted : T.textSecondary; }}>
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5v7M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                        <div style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }} onClick={ev => ev.stopPropagation()}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, background: T.bgHover, borderRadius: 999, padding: "3px 4px" }}>
+                            <button onClick={() => adjustTime(-0.25)} aria-label="Retirer un quart de jour" style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: T.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
+                              onMouseEnter={ev => { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; }}
+                              onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textSecondary; }}>
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                            </button>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, minWidth: 18, textAlign: "center" }}>{timeSpent}</span>
+                            <button onClick={() => adjustTime(0.25)} disabled={atCap} aria-label="Ajouter un quart de jour" title={atCap ? "Plafond de 5 jours atteint pour cette semaine" : "Ajouter un quart de jour"} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: atCap ? T.textXMuted : T.textSecondary, cursor: atCap ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
+                              onMouseEnter={ev => { if (!atCap) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; } }}
+                              onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = atCap ? T.textXMuted : T.textSecondary; }}>
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5v7M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => setConfirmDeleteEntry(e)}
+                            aria-label="Supprimer cette activité"
+                            title="Supprimer cette activité"
+                            style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", borderRadius: "50%", color: T.textXMuted, cursor: "pointer", transition: "color 0.12s, background 0.12s" }}
+                            onMouseEnter={ev => { ev.currentTarget.style.color = "#C5221F"; ev.currentTarget.style.background = "#FCE8E6"; }}
+                            onMouseLeave={ev => { ev.currentTarget.style.color = T.textXMuted; ev.currentTarget.style.background = "transparent"; }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 3.5h7M4.5 3.5V2.3a.8.8 0 01.8-.8h1.4a.8.8 0 01.8.8v1.2M5 5.5v3M7 5.5v3M3.2 3.5l.4 6a1 1 0 001 .9h2.8a1 1 0 001-.9l.4-6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
                         </div>
                       </div>
                     );
                   })}
+
+                  <button onClick={() => setAddPickerWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "transparent", border: `1.5px dashed ${T.border}`, borderRadius: 12, cursor: "pointer", color: T.textMuted, fontSize: 12, fontWeight: 600 }}
+                    onMouseEnter={ev => { ev.currentTarget.style.borderColor = T.accent; ev.currentTarget.style.color = T.accent; }}
+                    onMouseLeave={ev => { ev.currentTarget.style.borderColor = T.border; ev.currentTarget.style.color = T.textMuted; }}>
+                    <IC.Plus /> Ajouter un sujet
+                  </button>
+
+                  {pickerOpen && (
+                    <AddToWeekPicker
+                      projects={projects.filter(p => !group.entries.some(e => e.project.id === p.id))}
+                      weekStart={group.weekStart}
+                      isCurrentWeek={group.weekStart === currentWeekStart}
+                      onClose={() => setAddPickerWeek(null)}
+                      onAdd={(project, lastEntry) => {
+                        const entryDate = group.weekStart === currentWeekStart ? today() : group.weekStart;
+                        const newEntry = {
+                          id: `e${Date.now()}`,
+                          type: lastEntry?.type || "update",
+                          date: entryDate,
+                          text: lastEntry?.text || "",
+                          createdAt: new Date().toISOString(),
+                        };
+                        onUpdateProject(project.id, {
+                          timeline: [...project.timeline, newEntry],
+                          lastActivity: entryDate > (project.lastActivity || "") ? entryDate : project.lastActivity,
+                        });
+                        setAddPickerWeek(null);
+                      }}
+                    />
+                  )}
                 </div>
                 )}
               </div>
@@ -2413,6 +2495,21 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
           </div>
         )}
       </div>
+
+      {confirmDeleteEntry && (
+        <ConfirmModal
+          title="Supprimer le ticket des activités de cette semaine ?"
+          message={`${confirmDeleteEntry.project.title}${confirmDeleteEntry.project.jiraKey ? ` — ${confirmDeleteEntry.project.jiraKey}` : ""}`}
+          confirmLabel="Supprimer"
+          onCancel={() => setConfirmDeleteEntry(null)}
+          onConfirm={() => {
+            onUpdateProject(confirmDeleteEntry.project.id, {
+              timeline: confirmDeleteEntry.project.timeline.filter(te => te.id !== confirmDeleteEntry.id),
+            });
+            setConfirmDeleteEntry(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2789,7 +2886,6 @@ export default function App() {
             }} />
           </label>
         </div>
-
 
         {/* Save indicator */}
         <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
