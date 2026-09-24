@@ -2290,6 +2290,7 @@ function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose })
 function ActivityPage({ projects, onNavigate, onUpdateProject }) {
   const [expandedWeeks, setExpandedWeeks] = useState(null); // null = pas encore initialisé
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(null); // { entry } à confirmer
+  const [snackbar, setSnackbar] = useState(null);
   const [addPickerWeek, setAddPickerWeek] = useState(null); // weekStart pour lequel le sélecteur est ouvert
 
   function getWeekStart(dateStr) {
@@ -2417,12 +2418,45 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                     return (
                       <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 120px 10px 12px", cursor: "pointer" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{e.project.title}</span>
+                          <span
+                            onClick={ev => {
+                              ev.stopPropagation();
+                              const jiraUrl = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || "";
+                              const combined = jiraUrl ? `${e.project.title}\t${jiraUrl}` : e.project.title;
+                              copyToClipboard(combined).then(ok => {
+                                if (ok) {
+                                  setSnackbar(jiraUrl ? `Titre + lien Jira copiés` : `"${e.project.title}" copié`);
+                                  setTimeout(() => setSnackbar(null), 2000);
+                                }
+                              });
+                            }}
+                            title="Cliquer pour copier le titre et le lien Jira (colle en 2 colonnes dans Excel)"
+                            style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}
+                          >
+                            {e.project.title}
+                          </span>
                           {platforms.slice(0, 2).map(pl => {
                             const pc = PLATFORM_COLORS[pl] || T.futur;
                             return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
                           })}
-                          {e.project.jiraKey && <span style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace" }}>{e.project.jiraKey}</span>}
+                          {e.project.jiraKey && (
+                            <span
+                              onClick={ev => {
+                                ev.stopPropagation();
+                                const url = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || e.project.jiraKey;
+                                copyToClipboard(url).then(ok => {
+                                  if (ok) {
+                                    setSnackbar(`"${url}" copié`);
+                                    setTimeout(() => setSnackbar(null), 2000);
+                                  }
+                                });
+                              }}
+                              title="Cliquer pour copier le lien Jira"
+                              style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace", cursor: "pointer" }}
+                            >
+                              {e.project.jiraKey}
+                            </span>
+                          )}
                           {e.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
                         </div>
                         <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5 }}>
@@ -2436,7 +2470,21 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                               onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textSecondary; }}>
                               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
                             </button>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, minWidth: 18, textAlign: "center" }}>{timeSpent}</span>
+                            <span
+                              onClick={ev => {
+                                ev.stopPropagation();
+                                copyToClipboard(String(timeSpent)).then(ok => {
+                                  if (ok) {
+                                    setSnackbar(`"${timeSpent}" copié`);
+                                    setTimeout(() => setSnackbar(null), 2000);
+                                  }
+                                });
+                              }}
+                              title="Cliquer pour copier le nombre de jours"
+                              style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, minWidth: 18, textAlign: "center", cursor: "pointer" }}
+                            >
+                              {timeSpent}
+                            </span>
                             <button onClick={() => adjustTime(0.25)} disabled={atCap} aria-label="Ajouter un quart de jour" title={atCap ? "Plafond de 5 jours atteint pour cette semaine" : "Ajouter un quart de jour"} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: atCap ? T.textXMuted : T.textSecondary, cursor: atCap ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
                               onMouseEnter={ev => { if (!atCap) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; } }}
                               onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = atCap ? T.textXMuted : T.textSecondary; }}>
@@ -2509,6 +2557,12 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
             setConfirmDeleteEntry(null);
           }}
         />
+      )}
+
+      {snackbar && (
+        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 1000, background: "#1C1C1E", color: "#fff", fontSize: 13, fontWeight: 500, padding: "10px 20px", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.25)", pointerEvents: "none", whiteSpace: "nowrap" }}>
+          {snackbar}
+        </div>
       )}
     </div>
   );
