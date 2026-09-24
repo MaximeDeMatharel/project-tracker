@@ -2415,7 +2415,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                     }
 
                     return (
-                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 108px 10px 12px", cursor: "pointer" }}>
+                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 120px 10px 12px", cursor: "pointer" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{e.project.title}</span>
                           {platforms.slice(0, 2).map(pl => {
