@@ -2756,7 +2756,7 @@ function ClientModal({ mode, initialClient, onSave, onClose }) {
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: logoDataUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}>
             {logoDataUrl
-              ? <img src={logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <img src={logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }} />
               : <span style={{ color: "#fff", fontSize: 22, fontWeight: 800 }}>{name?.[0]?.toUpperCase() || "?"}</span>}
           </div>
         </div>
@@ -2809,16 +2809,16 @@ function ClientSwitcher({ clients, projects, activeClientId, onSwitch, onRename,
 
   function Avatar({ client, size = 18, radius = 5 }) {
     if (client?.logoDataUrl) {
-      return <span style={{ width: size, height: size, borderRadius: radius, overflow: "hidden", flexShrink: 0, display: "flex" }}><img src={client.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></span>;
+      return <span style={{ width: size, height: size, borderRadius: radius, overflow: "hidden", flexShrink: 0, display: "flex" }}><img src={client.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }} /></span>;
     }
     return <span style={{ width: size, height: size, borderRadius: radius, background: client?.color || T.accent, color: "#fff", fontSize: size * 0.55, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{client?.name?.[0]?.toUpperCase() || "?"}</span>;
   }
 
   return (
     <div style={{ position: "relative", marginBottom: 14 }}>
-      <button onClick={() => setOpen(v => !v)} title={activeClient?.name} style={{ width: 36, height: 36, borderRadius: 10, background: activeClient?.logoDataUrl ? "transparent" : (activeClient?.color || "#2A2E3D"), border: `1px solid ${T.borderNav}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" }}>
+      <button onClick={() => setOpen(v => !v)} title={activeClient?.name} style={{ width: 36, height: 36, boxSizing: "border-box", padding: 0, borderRadius: 10, background: activeClient?.logoDataUrl ? "transparent" : (activeClient?.color || "#2A2E3D"), border: `1px solid ${T.borderNav}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" }}>
         {activeClient?.logoDataUrl
-          ? <img src={activeClient.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ? <img src={activeClient.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }} />
           : <span style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{activeClient?.name?.[0]?.toUpperCase() || "?"}</span>}
       </button>
 
