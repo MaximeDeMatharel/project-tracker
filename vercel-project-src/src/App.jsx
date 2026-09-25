@@ -2997,12 +2997,7 @@ export default function App() {
 
         Object.values(projectsById).forEach(p => { p.timeline = sortEntries(p.timeline, "asc"); });
 
-        let loadedClients = clientRecords.map(airtableFieldsToClient);
-        if (loadedClients.length === 0) {
-          // Aucun client dans Airtable : on en crée un par défaut
-          const created = await airtableCreate(AIRTABLE_TABLE_CLIENT, clientToAirtableFields({ name: "SFR", color: "#6366F1" }));
-          loadedClients = [airtableFieldsToClient(created)];
-        }
+        const loadedClients = clientRecords.map(airtableFieldsToClient);
         setClients(loadedClients);
 
         // Préférence locale (par navigateur) : dernier client actif
@@ -3012,7 +3007,7 @@ export default function App() {
           savedActiveId = r?.value;
         } catch {}
         const validActiveId = loadedClients.find(c => c.id === savedActiveId && !c.archived)?.id;
-        setActiveClientId(validActiveId || loadedClients.find(c => !c.archived)?.id || loadedClients[0].id);
+        setActiveClientId(validActiveId || loadedClients.find(c => !c.archived)?.id || loadedClients[0]?.id || null);
 
         setProjects(Object.values(projectsById));
       } catch (e) {
