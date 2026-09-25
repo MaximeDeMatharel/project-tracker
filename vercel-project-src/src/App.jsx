@@ -98,6 +98,7 @@ const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
 const AIRTABLE_TABLE_SUJET = "Sujet";
 const AIRTABLE_TABLE_ACTIVITE = "Activité";
 const AIRTABLE_TABLE_TEMPS = "Temps";
+const AIRTABLE_TABLE_CLIENT = "Client";
 
 const STATUS_TO_AT = { in_progress: "En cours", waiting: "En attente", blocked: "Bloqué", futur: "Futur", done: "Terminer" };
 const AT_TO_STATUS = Object.fromEntries(Object.entries(STATUS_TO_AT).map(([k, v]) => [v, k]));
@@ -162,12 +163,14 @@ function projectToAirtableFields(p) {
   if (p.jiraUrl) fields["Lien Jira"] = p.jiraUrl;
   if (p.jiraKey) fields["Clé Jira"] = p.jiraKey;
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
+  if (p.clientId) fields["Client"] = [p.clientId];
   return fields;
 }
 
 function airtableFieldsToProject(record) {
   const f = record.fields || {};
   const platforms = (f["Plateforme"] || []).map(pl => AT_TO_PLATFORM[pl] || pl);
+  const clientLinks = f["Client"] || [];
   return {
     id: record.id,
     title: f["Titre"] || "",
@@ -181,6 +184,7 @@ function airtableFieldsToProject(record) {
     jiraKey: f["Clé Jira"] || null,
     jiraLinks: f["Lien Jira"] ? [{ id: "primary", url: f["Lien Jira"], key: f["Clé Jira"] || "" }] : [],
     lastActivity: f["Dernière activité"] || null,
+    clientId: clientLinks[0] || null,
     createdAt: record.createdTime,
     timeline: [],
   };
@@ -192,6 +196,7 @@ function activityToAirtableFields(entry, sujetRecordId) {
     "Texte": entry.text || "",
     "Date": entry.date || today(),
     "En attente de retour": !!entry.waitingTag,
+    "Note complémentaire": entry.noteContent || "",
   };
   if (entry.type && TYPE_TO_AT[entry.type]) fields["Type"] = TYPE_TO_AT[entry.type];
   return fields;
@@ -205,7 +210,28 @@ function airtableFieldsToActivity(record) {
     date: f["Date"] || "",
     text: f["Texte"] || "",
     waitingTag: !!f["En attente de retour"],
+    noteContent: f["Note complémentaire"] || "",
     createdAt: record.createdTime,
+  };
+}
+
+function clientToAirtableFields(c) {
+  return {
+    "Nom": c.name || "",
+    "Couleur": c.color || "",
+    "Logo": c.logoDataUrl || "",
+    "Archivé": !!c.archived,
+  };
+}
+
+function airtableFieldsToClient(record) {
+  const f = record.fields || {};
+  return {
+    id: record.id,
+    name: f["Nom"] || "",
+    color: f["Couleur"] || null,
+    logoDataUrl: f["Logo"] || null,
+    archived: !!f["Archivé"],
   };
 }
 
@@ -2694,14 +2720,225 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
 }
 
 // ─── APP (with persistent storage) ───────────────────────────────────────────
+// ─── CLIENT SWITCHER (menu à deux niveaux dans la nav rail) ───────────────────
+// ─── CLIENT MODAL (création / édition — nom, couleur ou logo) ────────────────
+const CLIENT_COLORS = ["#6366F1", "#DC2626", "#D97706", "#16A34A", "#0891B2", "#7C3AED", "#DB2777", "#6B7280"];
+
+function ClientModal({ mode, initialClient, onSave, onClose }) {
+  const [name, setName] = useState(initialClient?.name || "");
+  const [color, setColor] = useState(initialClient?.color || CLIENT_COLORS[0]);
+  const [logoDataUrl, setLogoDataUrl] = useState(initialClient?.logoDataUrl || null);
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Merci de choisir un fichier image."); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setLogoDataUrl(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function handleSave() {
+    if (!name.trim()) return;
+    onSave({ name: name.trim(), color: logoDataUrl ? null : color, logoDataUrl });
+    onClose();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 22, width: 360, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.16)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{mode === "create" ? "Nouveau client" : "Modifier le client"}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 4 }}><IC.X /></button>
+        </div>
+
+        {/* Aperçu */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: logoDataUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}>
+            {logoDataUrl
+              ? <img src={logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <span style={{ color: "#fff", fontSize: 22, fontWeight: 800 }}>{name?.[0]?.toUpperCase() || "?"}</span>}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Nom du client</label>
+          <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSave()} placeholder="Ex: SFR" style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Couleur</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {CLIENT_COLORS.map(c => (
+              <button key={c} onClick={() => { setColor(c); setLogoDataUrl(null); }} style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: (!logoDataUrl && color === c) ? `2px solid ${T.textPrimary}` : "2px solid transparent", boxShadow: (!logoDataUrl && color === c) ? "0 0 0 2px #fff inset" : "none", cursor: "pointer", padding: 0 }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Ou un logo depuis tes fichiers</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <label style={{ flex: 1, textAlign: "center", padding: "8px 10px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.bgInput, color: T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              {logoDataUrl ? "Changer l'image" : "Choisir une image…"}
+              <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+            </label>
+            {logoDataUrl && (
+              <button onClick={() => setLogoDataUrl(null)} style={{ padding: "8px 12px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: "#C5221F", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Retirer</button>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
+          <button onClick={handleSave} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer" }}>{mode === "create" ? "Créer" : "Enregistrer"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientSwitcher({ clients, projects, activeClientId, onSwitch, onRename, onCreate, onArchive, onUnarchive, onDeletePermanently }) {
+  const [open, setOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState(null); // client en cours d'édition, ou "new"
+  const [confirmArchiveId, setConfirmArchiveId] = useState(null);
+  const [confirmDeletePermanentId, setConfirmDeletePermanentId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const activeClient = clients.find(c => c.id === activeClientId) || clients[0];
+  const visibleClients = clients.filter(c => !c.archived);
+  const archivedClients = clients.filter(c => c.archived);
+
+  function Avatar({ client, size = 18, radius = 5 }) {
+    if (client?.logoDataUrl) {
+      return <span style={{ width: size, height: size, borderRadius: radius, overflow: "hidden", flexShrink: 0, display: "flex" }}><img src={client.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></span>;
+    }
+    return <span style={{ width: size, height: size, borderRadius: radius, background: client?.color || T.accent, color: "#fff", fontSize: size * 0.55, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{client?.name?.[0]?.toUpperCase() || "?"}</span>;
+  }
+
+  return (
+    <div style={{ position: "relative", marginBottom: 14 }}>
+      <button onClick={() => setOpen(v => !v)} title={activeClient?.name} style={{ width: 36, height: 36, borderRadius: 10, background: activeClient?.logoDataUrl ? "transparent" : (activeClient?.color || "#2A2E3D"), border: `1px solid ${T.borderNav}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" }}>
+        {activeClient?.logoDataUrl
+          ? <img src={activeClient.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <span style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{activeClient?.name?.[0]?.toUpperCase() || "?"}</span>}
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => { setOpen(false); setShowArchived(false); }} />
+          <div style={{ position: "absolute", top: 0, left: "calc(100% + 8px)", zIndex: 99, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.18)", width: 260, overflow: "hidden" }}>
+            <div style={{ padding: "8px 10px", fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: `1px solid ${T.border}` }}>Client</div>
+
+            {visibleClients.map(c => (
+              <div key={c.id} style={{ display: "flex", alignItems: "center", background: c.id === activeClientId ? T.bgSelected : "transparent" }}>
+                <button onClick={() => { onSwitch(c.id); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, fontWeight: c.id === activeClientId ? 700 : 500, color: T.textPrimary }}>
+                  <Avatar client={c} />
+                  {c.name}
+                </button>
+                <button onClick={() => setEditingClient(c)} title="Éditer" style={{ width: 24, height: 24, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, borderRadius: 5 }}
+                  onMouseEnter={ev => { ev.currentTarget.style.background = T.bgHover; ev.currentTarget.style.color = T.textPrimary; }}
+                  onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textMuted; }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2-6 6-2.4.4.4-2.4 6-6z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                {visibleClients.length > 1 && (
+                  <button onClick={() => setConfirmArchiveId(c.id)} title="Archiver ce client" style={{ width: 24, height: 24, flexShrink: 0, marginRight: 6, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, borderRadius: 5 }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = T.bgHover; ev.currentTarget.style.color = T.textPrimary; }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textMuted; }}>
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M2.3 5v6a1 1 0 001 1h7.4a1 1 0 001-1V5" stroke="currentColor" strokeWidth="1.2"/><path d="M5.5 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <div style={{ borderTop: `1px solid ${T.border}` }}>
+              <button onClick={() => setEditingClient("new")} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: T.accent }}>
+                <IC.Plus /> Nouveau client
+              </button>
+            </div>
+
+            {archivedClients.length > 0 && (
+              <div style={{ borderTop: `1px solid ${T.border}` }}>
+                <button onClick={() => setShowArchived(v => !v)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, color: T.textMuted }}>
+                  <span style={{ display: "flex", transform: showArchived ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IC.Chevron /></span>
+                  Archivés ({archivedClients.length})
+                </button>
+                {showArchived && archivedClients.map(c => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px 6px 24px" }}>
+                    <span style={{ fontSize: 12, color: T.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Avatar client={c} size={16} /> {c.name}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <button onClick={() => onUnarchive(c.id)} style={{ fontSize: 11, fontWeight: 700, color: T.accent, background: "transparent", border: "none", cursor: "pointer", padding: "3px 6px" }}>Désarchiver</button>
+                      <button onClick={() => setConfirmDeletePermanentId(c.id)} title="Supprimer définitivement" style={{ width: 22, height: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textXMuted, borderRadius: 5 }}
+                        onMouseEnter={ev => { ev.currentTarget.style.background = "#FCE8E6"; ev.currentTarget.style.color = "#C5221F"; }}
+                        onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = T.textXMuted; }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 3.5h7M4.5 3.5V2.3a.8.8 0 01.8-.8h1.4a.8.8 0 01.8.8v1.2M5 5.5v3M7 5.5v3M3.2 3.5l.4 6a1 1 0 001 .9h2.8a1 1 0 001-.9l.4-6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {editingClient && (
+        <ClientModal
+          mode={editingClient === "new" ? "create" : "edit"}
+          initialClient={editingClient === "new" ? null : editingClient}
+          onClose={() => setEditingClient(null)}
+          onSave={(data) => {
+            if (editingClient === "new") onCreate(data);
+            else onRename(editingClient.id, data);
+          }}
+        />
+      )}
+
+      {confirmArchiveId && (() => {
+        const target = clients.find(c => c.id === confirmArchiveId);
+        return (
+          <ConfirmModal
+            title={`Archiver le client "${target?.name}" ?`}
+            message="Il disparaîtra de la liste, mais ses sujets restent intacts — tu pourras tout retrouver en le désarchivant."
+            confirmLabel="Archiver"
+            onCancel={() => setConfirmArchiveId(null)}
+            onConfirm={() => {
+              onArchive(confirmArchiveId);
+              setConfirmArchiveId(null);
+              setOpen(false);
+            }}
+          />
+        );
+      })()}
+
+      {confirmDeletePermanentId && (() => {
+        const target = clients.find(c => c.id === confirmDeletePermanentId);
+        const count = (projects || []).filter(p => p.clientId === confirmDeletePermanentId).length;
+        return (
+          <ConfirmModal
+            title={`Supprimer définitivement "${target?.name}" ?`}
+            message={`Action irréversible : ${count} sujet${count > 1 ? "s" : ""} et tout leur historique seront supprimés pour toujours, sans possibilité de retour.`}
+            confirmLabel="Supprimer définitivement"
+            onCancel={() => setConfirmDeletePermanentId(null)}
+            onConfirm={() => {
+              onDeletePermanently(confirmDeletePermanentId);
+              setConfirmDeletePermanentId(null);
+              setOpen(false);
+            }}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
 export default function App() {
   const [projects, setProjects] = useState(null);
+  const [clients, setClients] = useState([{ id: "c1", name: "SFR" }]);
+  const [activeClientId, setActiveClientId] = useState("c1");
   const [activePage, setActivePage] = useState("dashboard");
   const [targetProjectId, setTargetProjectId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [incomingSync, setIncomingSync] = useState(null); // { projectId, activities }
   const syncPollRef = useRef(null);
-  const saveTimer = useRef(null);
 
   // ── Global poll for incoming sync from Claude ──
   useEffect(() => {
@@ -2726,10 +2963,11 @@ export default function App() {
   useEffect(() => {
     async function load() {
       try {
-        const [sujetRecords, activiteRecords, tempsRecords] = await Promise.all([
+        const [sujetRecords, activiteRecords, tempsRecords, clientRecords] = await Promise.all([
           airtableListAll(AIRTABLE_TABLE_SUJET),
           airtableListAll(AIRTABLE_TABLE_ACTIVITE),
           airtableListAll(AIRTABLE_TABLE_TEMPS),
+          airtableListAll(AIRTABLE_TABLE_CLIENT),
         ]);
 
         const projectsById = {};
@@ -2758,6 +2996,23 @@ export default function App() {
         });
 
         Object.values(projectsById).forEach(p => { p.timeline = sortEntries(p.timeline, "asc"); });
+
+        let loadedClients = clientRecords.map(airtableFieldsToClient);
+        if (loadedClients.length === 0) {
+          // Aucun client dans Airtable : on en crée un par défaut
+          const created = await airtableCreate(AIRTABLE_TABLE_CLIENT, clientToAirtableFields({ name: "SFR", color: "#6366F1" }));
+          loadedClients = [airtableFieldsToClient(created)];
+        }
+        setClients(loadedClients);
+
+        // Préférence locale (par navigateur) : dernier client actif
+        let savedActiveId = null;
+        try {
+          const r = await window.storage.get("active-client-id");
+          savedActiveId = r?.value;
+        } catch {}
+        const validActiveId = loadedClients.find(c => c.id === savedActiveId && !c.archived)?.id;
+        setActiveClientId(validActiveId || loadedClients.find(c => !c.archived)?.id || loadedClients[0].id);
 
         setProjects(Object.values(projectsById));
       } catch (e) {
@@ -2804,7 +3059,7 @@ export default function App() {
         const prevWT = prevProject.weeklyTime || {};
         const recordIds = prevProject._weeklyTimeRecordIds || {};
         for (const week of Object.keys(weeklyTime)) {
-          if (weeklyTime[week] === prevWT[week]) continue; // pas de changement pour cette semaine
+          if (weeklyTime[week] === prevWT[week]) continue;
           if (recordIds[week]) {
             await airtableUpdate(AIRTABLE_TABLE_TEMPS, recordIds[week], { "Temps travaillé": weeklyTime[week] });
           } else {
@@ -2829,7 +3084,6 @@ export default function App() {
     }
   }
 
-
   // ── Actions ──
   function updateProject(id, changes) {
     const prevProject = projects.find(p => p.id === id);
@@ -2847,8 +3101,8 @@ export default function App() {
   async function addProject(project) {
     setSaveStatus("saving");
     try {
-      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields(project));
-      const newProject = { ...project, id: created.id, createdAt: created.createdTime, timeline: [] };
+      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields({ ...project, clientId: activeClientId }));
+      const newProject = { ...project, id: created.id, clientId: activeClientId, createdAt: created.createdTime, timeline: [] };
       setProjects(prev => [newProject, ...prev]);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
@@ -2873,6 +3127,79 @@ export default function App() {
     }
   }
 
+  // ── Gestion des clients (Airtable) ──
+  function switchClient(clientId) {
+    setActiveClientId(clientId);
+    window.storage.set("active-client-id", clientId).catch(() => {});
+  }
+
+  async function renameClient(clientId, updates) {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...updates } : c));
+    try {
+      await airtableUpdate(AIRTABLE_TABLE_CLIENT, clientId, clientToAirtableFields({ ...clients.find(c => c.id === clientId), ...updates }));
+    } catch (e) {
+      setAirtableError(e.message || String(e));
+    }
+  }
+
+  async function createClient(data) {
+    try {
+      const created = await airtableCreate(AIRTABLE_TABLE_CLIENT, clientToAirtableFields(data));
+      const newClient = airtableFieldsToClient(created);
+      setClients(prev => [...prev, newClient]);
+      switchClient(newClient.id);
+    } catch (e) {
+      setAirtableError(e.message || String(e));
+    }
+  }
+
+  async function archiveClient(clientId) {
+    const activeCount = clients.filter(c => !c.archived).length;
+    const target = clients.find(c => c.id === clientId);
+    if (!target || target.archived) return;
+    if (activeCount <= 1) return; // toujours garder au moins un client actif
+
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true } : c));
+    if (activeClientId === clientId) {
+      const fallback = clients.find(c => c.id !== clientId && !c.archived);
+      if (fallback) switchClient(fallback.id);
+    }
+    try {
+      await airtableUpdate(AIRTABLE_TABLE_CLIENT, clientId, { "Archivé": true });
+    } catch (e) {
+      setAirtableError(e.message || String(e));
+    }
+  }
+
+  async function unarchiveClient(clientId) {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: false } : c));
+    try {
+      await airtableUpdate(AIRTABLE_TABLE_CLIENT, clientId, { "Archivé": false });
+    } catch (e) {
+      setAirtableError(e.message || String(e));
+    }
+  }
+
+  async function deleteClientPermanently(clientId) {
+    const affectedProjects = projects.filter(p => p.clientId === clientId);
+    setClients(prev => prev.filter(c => c.id !== clientId));
+    setProjects(prev => prev.filter(p => p.clientId !== clientId));
+    try {
+      for (const p of affectedProjects) {
+        await Promise.all((p.timeline || []).map(e => airtableDelete(AIRTABLE_TABLE_ACTIVITE, e.id).catch(() => {})));
+        await airtableDelete(AIRTABLE_TABLE_SUJET, p.id).catch(() => {});
+      }
+      await airtableDelete(AIRTABLE_TABLE_CLIENT, clientId);
+    } catch (e) {
+      setAirtableError(e.message || String(e));
+    }
+  }
+
+  const visibleProjects = useMemo(
+    () => (projects || []).filter(p => p.clientId === activeClientId),
+    [projects, activeClientId]
+  );
+
   // ── Loading state ──
   if (projects === null) {
     return (
@@ -2893,9 +3220,13 @@ export default function App() {
       {/* ── NAV RAIL ── */}
       <nav style={{ width: 64, flexShrink: 0, background: T.bgNav, borderRight: `1px solid ${T.borderNav}`, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, paddingBottom: 16, zIndex: 10 }}>
         {/* Logo */}
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: T.accent, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 28, flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.4)" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: T.accent, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.4)" }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 14V5l6-3 6 3v9" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 18v-5h6v5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/></svg>
         </div>
+
+        <ClientSwitcher clients={clients} projects={projects} activeClientId={activeClientId} onSwitch={switchClient} onRename={renameClient} onCreate={createClient} onArchive={archiveClient} onUnarchive={unarchiveClient} onDeletePermanently={deleteClientPermanently} />
+
+        <div style={{ width: 28, height: 1, background: T.borderNav, marginBottom: 14, flexShrink: 0 }} />
 
         {/* Nav items */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, width: "100%" }}>
@@ -2950,13 +3281,13 @@ export default function App() {
                     setSaveStatus("saving");
                     const imported = [];
                     for (const p of data.projects) {
-                      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields(p));
+                      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields({ ...p, clientId: activeClientId }));
                       const newTimeline = [];
                       for (const entry of (p.timeline || [])) {
                         const createdEntry = await airtableCreate(AIRTABLE_TABLE_ACTIVITE, activityToAirtableFields(entry, created.id));
                         newTimeline.push({ ...entry, id: createdEntry.id, createdAt: createdEntry.createdTime });
                       }
-                      imported.push({ ...p, id: created.id, createdAt: created.createdTime, timeline: newTimeline });
+                      imported.push({ ...p, id: created.id, clientId: activeClientId, createdAt: created.createdTime, timeline: newTimeline });
                     }
                     setProjects(prev => [...imported, ...prev]);
                     setSaveStatus("saved");
@@ -2988,10 +3319,10 @@ export default function App() {
 
       {/* ── PAGE ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", background: T.bg, minWidth: 0 }}>
-        {activePage === "projects"  && <SubjectsPage projects={projects} onUpdate={updateProject} onAdd={addProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} targetProjectId={targetProjectId} onTargetConsumed={() => setTargetProjectId(null)} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
-        {activePage === "kanban"    && <KanbanPage projects={projects} onUpdate={updateProject} />}
-        {activePage === "activity"  && <ActivityPage projects={projects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
-        {activePage === "dashboard" && <DashboardPage projects={projects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
+        {activePage === "projects"  && <SubjectsPage projects={visibleProjects} onUpdate={updateProject} onAdd={addProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} targetProjectId={targetProjectId} onTargetConsumed={() => setTargetProjectId(null)} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
+        {activePage === "kanban"    && <KanbanPage projects={visibleProjects} onUpdate={updateProject} />}
+        {activePage === "activity"  && <ActivityPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
+        {activePage === "dashboard" && <DashboardPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "settings"  && <PlaceholderPage label="Réglages" />}
       </div>
     </div>
