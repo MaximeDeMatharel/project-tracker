@@ -773,7 +773,9 @@ function AddActivityModal({ project, onClose, onAdd }) {
 
 // ─── MODAL: ADD PROJECT ───────────────────────────────────────────────────────
 function AddSubjectModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", stakeholders: "", description: "", nextAction: "" });
+  const { user } = useUser();
+  const defaultAssignee = ASSIGNEE_OPTIONS.includes(user?.firstName) ? user.firstName : null;
+  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", stakeholders: "", description: "", nextAction: "", assignee: defaultAssignee });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const inputStyle = { width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" };
   const label = (t) => <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 6 }}>{t}</label>;
@@ -790,6 +792,23 @@ function AddSubjectModal({ onClose, onAdd }) {
             {label("Tags plateforme")}
             <div style={{ padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, minHeight: 36, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
               <PlatformSelector platforms={form.platforms} onChange={v => set("platforms", v)} />
+            </div>
+          </div>
+          <div>
+            {label("Qui travaille dessus ?")}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {[null, ...ASSIGNEE_OPTIONS].map(name => {
+                const active = form.assignee === name;
+                const info = name ? ASSIGNEE_INFO[name] : null;
+                return (
+                  <button key={name || "none"} type="button" onClick={() => set("assignee", name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px 4px 4px", borderRadius: 20, border: `1.5px solid ${active ? (info?.color || T.textSecondary) : T.border}`, background: active ? `${info?.color || T.textSecondary}14` : "transparent", cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 500, color: T.textPrimary }}>
+                    <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.textXMuted, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {info ? info.abbr : <IC.User />}
+                    </span>
+                    {name || "Personne"}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div>{label("Statut")}<select value={form.status} onChange={e => set("status", e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
@@ -1951,10 +1970,16 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
   );
 }
 
-function KanbanPage({ projects, onUpdate }) {
+function KanbanPage({ projects: allProjects, onUpdate }) {
   const [dragOver, setDragOver] = useState(null);
   const [search, setSearch] = useState("");
+  const [filterAssignee, setFilterAssignee] = useState("all");
   const dragId = useRef(null);
+
+  const projects = useMemo(
+    () => allProjects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    [allProjects, filterAssignee]
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -1978,7 +2003,10 @@ function KanbanPage({ projects, onUpdate }) {
       <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Kanban</div>
         <div style={{ fontSize: 11, color: T.textMuted }}>{projects.length} sujets</div>
-        <div style={{ marginLeft: "auto", position: "relative" }}>
+        <div style={{ marginLeft: "auto", width: 190 }}>
+          <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
+        </div>
+        <div style={{ position: "relative" }}>
           <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: T.textMuted }}><IC.Search /></span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ padding: "6px 10px 6px 28px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, color: T.textPrimary, outline: "none", fontFamily: "inherit", width: 200 }} />
         </div>
@@ -2713,8 +2741,13 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 }
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
-function DashboardPage({ projects, onNavigate, onUpdateProject }) {
+function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const [waitingCollapsed, setWaitingCollapsed] = useState(false);
+  const [filterAssignee, setFilterAssignee] = useState("all");
+  const projects = useMemo(
+    () => allProjects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    [allProjects, filterAssignee]
+  );
   const now = new Date();
 
   // ── Stats ──
@@ -2768,12 +2801,17 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
       <div style={{ padding: "28px 32px 48px" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.5, textTransform: "capitalize" }}>
-            Bonjour 👋
+        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.5, textTransform: "capitalize" }}>
+              Bonjour 👋
+            </div>
+            <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>
+              {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dateLabel}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>
-            {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dateLabel}
+          <div style={{ width: 200, flexShrink: 0 }}>
+            <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
           </div>
         </div>
 
