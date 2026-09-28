@@ -164,6 +164,7 @@ function projectToAirtableFields(p) {
   if (p.jiraKey) fields["Clé Jira"] = p.jiraKey;
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
   if (p.clientId) fields["Client"] = [p.clientId];
+  if (p.assignee !== undefined) fields["Personnes"] = p.assignee || null;
   return fields;
 }
 
@@ -185,6 +186,7 @@ function airtableFieldsToProject(record) {
     jiraLinks: f["Lien Jira"] ? [{ id: "primary", url: f["Lien Jira"], key: f["Clé Jira"] || "" }] : [],
     lastActivity: f["Dernière activité"] || null,
     clientId: clientLinks[0] || null,
+    assignee: f["Personnes"] || null,
     createdAt: record.createdTime,
     timeline: [],
   };
@@ -456,6 +458,12 @@ const PLATFORM_COLORS = {
   Other:      "#D97706",
 };
 const ALL_PLATFORMS = Object.keys(PLATFORM_COLORS);
+const ASSIGNEE_OPTIONS = ["Maxime", "Estelle", "Morgan"];
+const ASSIGNEE_INFO = {
+  Maxime:  { abbr: "Max", color: "#6366F1" },
+  Estelle: { abbr: "E",   color: "#DB2777" },
+  Morgan:  { abbr: "Mo",  color: "#16A34A" },
+};
 
 // ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -1053,6 +1061,52 @@ function EditableStakeholders({ stakeholders, onChange }) {
   );
 }
 
+function EditableAssignee({ assignee, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const ref = useRef();
+
+  useEffect(() => { if (editing && ref.current) ref.current.focus(); }, [editing]);
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <IC.User />
+        <select
+          ref={ref}
+          value={assignee || ""}
+          onChange={e => { onChange(e.target.value || null); setEditing(false); }}
+          onBlur={() => setEditing(false)}
+          style={{ fontSize: 12, padding: "3px 8px", border: `1px solid ${T.accent}`, borderRadius: 6, outline: "none", fontFamily: "inherit", color: T.textPrimary, background: T.accentBg, cursor: "pointer" }}
+        >
+          <option value="">Non assigné</option>
+          {ASSIGNEE_OPTIONS.map(name => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </div>
+    );
+  }
+
+  if (assignee) {
+    const info = ASSIGNEE_INFO[assignee];
+    return (
+      <button onClick={() => setEditing(true)} title="Modifier qui travaille sur ce sujet" style={{ display: "flex", alignItems: "center", gap: 6, color: T.textSecondary, fontSize: 12, background: "none", border: "none", cursor: "pointer", padding: "3px 6px", borderRadius: 6, transition: "background 0.12s" }}
+        onMouseEnter={e => e.currentTarget.style.background = T.bgHover}
+        onMouseLeave={e => e.currentTarget.style.background = "none"}>
+        <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          {info?.abbr || assignee[0]}
+        </span>
+        {assignee}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.4 }}><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+      </button>
+    );
+  }
+
+  return (
+    <button onClick={() => setEditing(true)} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 500, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+      <IC.User />Qui travaille dessus ?
+    </button>
+  );
+}
+
 // ─── CONFIRM MODAL ────────────────────────────────────────────────────────────
 function ConfirmModal({ title, message, confirmLabel = "Supprimer", onConfirm, onCancel }) {
   return (
@@ -1390,6 +1444,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           {/* Stakeholders — editable */}
           <EditableStakeholders stakeholders={project.stakeholders || []} onChange={v => patch({ stakeholders: v })} />
 
+          {/* Assignees — qui travaille dessus */}
+          <EditableAssignee assignee={project.assignee || null} onChange={v => patch({ assignee: v })} />
+
           {project.lastActivity && (
             <div style={{ display: "flex", alignItems: "center", gap: 5, color: T.textMuted, fontSize: 12 }}>
               <IC.Clock />{timeAgo(project.lastActivity)}
@@ -1607,6 +1664,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("in_progress");
   const [filterPlatform, setFilterPlatform] = useState("all");
+  const [filterAssignee, setFilterAssignee] = useState("all");
   const [showAddProject, setShowAddProject] = useState(false);
 
   const selected = projects.find(p => p.id === selectedId);
@@ -1641,9 +1699,10 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     return projects.filter(p => {
       const pPlats = p.platforms || [];
       const matchQ = !q || p.title.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.jiraKey?.toLowerCase().includes(q) || (p.stakeholders || []).some(s => s.toLowerCase().includes(q));
-      return matchQ && (filterStatus === "all" || p.status === filterStatus) && (filterPlatform === "all" || pPlats.includes(filterPlatform));
+      return matchQ && (filterStatus === "all" || p.status === filterStatus) && (filterPlatform === "all" || pPlats.includes(filterPlatform)) && (filterAssignee === "all" || p.assignee === filterAssignee);
     });
-  }, [projects, search, filterStatus, filterPlatform]);
+  }, [projects, search, filterStatus, filterPlatform, filterAssignee]);
+
 
   const sections = {
     in_progress: filtered.filter(p => p.status === "in_progress"),
@@ -1698,6 +1757,12 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
             <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: T.textMuted }}><IC.Search /></span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ width: "100%", boxSizing: "border-box", padding: "7px 28px 7px 30px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
             {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2 }}><IC.X /></button>}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+              <option value="all">Tout le monde</option>
+              {ASSIGNEE_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
           </div>
           </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 16px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
