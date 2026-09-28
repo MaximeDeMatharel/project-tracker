@@ -1123,6 +1123,22 @@ function PersonFilterDropdown({ value, onChange }) {
   );
 }
 
+// ─── Filtre par personne, présélectionné sur l'utilisateur connecté (Clerk) ──
+function useAssigneeFilter() {
+  const { user, isLoaded } = useUser();
+  const me = ASSIGNEE_OPTIONS.includes(user?.firstName) ? user.firstName : null;
+  const [value, setValue] = useState(me || "all");
+  const initialized = useRef(!!me);
+  useEffect(() => {
+    // Si le profil Clerk arrive après le premier affichage, on applique la présélection une seule fois
+    if (!initialized.current && isLoaded) {
+      initialized.current = true;
+      if (me) setValue(me);
+    }
+  }, [isLoaded, me]);
+  return [value, setValue];
+}
+
 function EditableAssignee({ assignee, onChange }) {
   const [editing, setEditing] = useState(false);
   const ref = useRef();
@@ -1728,7 +1744,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("in_progress");
   const [filterPlatform, setFilterPlatform] = useState("all");
-  const [filterAssignee, setFilterAssignee] = useState("all");
+  const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const [showAddProject, setShowAddProject] = useState(false);
 
   const selected = projects.find(p => p.id === selectedId);
@@ -1973,7 +1989,7 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
 function KanbanPage({ projects: allProjects, onUpdate }) {
   const [dragOver, setDragOver] = useState(null);
   const [search, setSearch] = useState("");
-  const [filterAssignee, setFilterAssignee] = useState("all");
+  const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const dragId = useRef(null);
 
   const projects = useMemo(
@@ -2743,7 +2759,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const [waitingCollapsed, setWaitingCollapsed] = useState(false);
-  const [filterAssignee, setFilterAssignee] = useState("all");
+  const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const projects = useMemo(
     () => allProjects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
     [allProjects, filterAssignee]
