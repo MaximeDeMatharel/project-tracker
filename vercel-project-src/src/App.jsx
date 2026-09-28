@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignIn, UserButton, useUser } from "@clerk/clerk-react";
 
 // ─── window.storage shim (remplace l'API artifact-preview par localStorage) ──
 if (typeof window !== "undefined" && !window.storage) {
@@ -200,6 +200,7 @@ function activityToAirtableFields(entry, sujetRecordId) {
     "Date": entry.date || today(),
     "En attente de retour": !!entry.waitingTag,
     "Note complémentaire": entry.noteContent || "",
+    "Créé par": entry.createdBy || "",
   };
   if (entry.type && TYPE_TO_AT[entry.type]) fields["Type"] = TYPE_TO_AT[entry.type];
   return fields;
@@ -214,6 +215,7 @@ function airtableFieldsToActivity(record) {
     text: f["Texte"] || "",
     waitingTag: !!f["En attente de retour"],
     noteContent: f["Note complémentaire"] || "",
+    createdBy: f["Créé par"] || null,
     createdAt: record.createdTime,
   };
 }
@@ -1130,6 +1132,7 @@ function ConfirmModal({ title, message, confirmLabel = "Supprimer", onConfirm, o
 
 
 function SubjectDetail({ project, onUpdate, onDelete, onDeleteActivity, incomingSync, onSyncConsumed }) {
+  const { user } = useUser();
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const sorted = sortEntries(project.timeline);
@@ -1386,7 +1389,8 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
     const newEntry = { 
       ...activity, 
       id: `e${Date.now()}`, 
-      createdAt: activity.createdAt || new Date().toISOString()
+      createdAt: activity.createdAt || new Date().toISOString(),
+      createdBy: user?.firstName || null,
     };
     patch({ timeline: [...project.timeline, newEntry], lastActivity: activity.date });
   }
@@ -1962,6 +1966,7 @@ function KanbanPage({ projects, onUpdate }) {
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
 function NextActionItem({ project, onNavigate, onUpdateProject, isLast }) {
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -2072,6 +2077,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       date: today(),
       text: entryText,
       createdAt: new Date().toISOString(),
+      createdBy: user?.firstName || null,
     };
     onUpdateProject(project.id, {
       timeline: [...project.timeline, newEntry],
@@ -2156,6 +2162,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 
 // ─── RELANCE ITEM ─────────────────────────────────────────────────────────────
 function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdateProject, isLast }) {
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [relance, setRelance] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -2261,6 +2268,7 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
       date: today(),
       text: entryText,
       createdAt: new Date().toISOString(),
+      createdBy: user?.firstName || null,
     };
     onUpdateProject(project.id, {
       timeline: [...project.timeline, newEntry],
@@ -2379,6 +2387,7 @@ function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose })
 }
 
 function ActivityPage({ projects, onNavigate, onUpdateProject }) {
+  const { user } = useUser();
   const [expandedWeeks, setExpandedWeeks] = useState(null); // null = pas encore initialisé
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(null); // { entry } à confirmer
   const [snackbar, setSnackbar] = useState(null);
@@ -2398,13 +2407,14 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
     return projects
       .flatMap(p => p.timeline.map(e => ({ ...e, project: p })))
       .filter(e => e.type !== "relance" && e.type !== "feedback")
+      .filter(e => e.createdBy === user?.firstName)
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         const tA = a.createdAt || a.id || "";
         const tB = b.createdAt || b.id || "";
         return tB.localeCompare(tA);
       });
-  }, [projects]);
+  }, [projects, user]);
 
   const filtered = allEntries;
 
@@ -2618,6 +2628,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           date: entryDate,
                           text: lastEntry?.text || "",
                           createdAt: new Date().toISOString(),
+                          createdBy: user?.firstName || null,
                         };
                         onUpdateProject(project.id, {
                           timeline: [...project.timeline, newEntry],
