@@ -2842,6 +2842,18 @@ function DashboardPage({ projects, onNavigate, onUpdateProject }) {
 
 // ─── APP (with persistent storage) ───────────────────────────────────────────
 // ─── CLIENT SWITCHER (menu à deux niveaux dans la nav rail) ───────────────────
+// ─── LOGO : pile de tickets dans un cercle ───────────────────────────────────
+const TICKET_PATH = "M16 22a3 3 0 013-3h26a3 3 0 013 3v3a3.5 3.5 0 000 7v3a3 3 0 01-3 3H19a3 3 0 01-3-3v-3a3.5 3.5 0 000-7z";
+function LogoMark({ size = 36 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block" }}>
+      <circle cx="32" cy="32" r="31" fill="#1C1C1E" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
+      <g transform="rotate(12 32 32)"><path d={TICKET_PATH} fill="#6366F1" /></g>
+      <g transform="rotate(-8 32 32) translate(0 7)"><path d={TICKET_PATH} fill="#FFFFFF" /></g>
+    </svg>
+  );
+}
+
 // ─── CLIENT MODAL (création / édition — nom, couleur ou logo) ────────────────
 const CLIENT_COLORS = ["#6366F1", "#DC2626", "#D97706", "#16A34A", "#0891B2", "#7C3AED", "#DB2777", "#6B7280"];
 
@@ -3321,8 +3333,8 @@ function AppContent() {
     return (
       <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" }}>
         <div style={{ textAlign: "center", color: T.textMuted }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: T.accent, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 14V5l6-3 6 3v9" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 18v-5h6v5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+          <div style={{ width: 36, height: 36, margin: "0 auto 16px" }}>
+            <LogoMark size={36} />
           </div>
           <div style={{ fontSize: 13, color: T.textMuted }}>Chargement…</div>
         </div>
@@ -3336,8 +3348,8 @@ function AppContent() {
       {/* ── NAV RAIL ── */}
       <nav style={{ width: 64, flexShrink: 0, background: T.bgNav, borderRight: `1px solid ${T.borderNav}`, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, paddingBottom: 16, zIndex: 10 }}>
         {/* Logo */}
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: T.accent, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.4)" }}>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 14V5l6-3 6 3v9" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6 18v-5h6v5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+        <div style={{ width: 36, height: 36, marginBottom: 14, flexShrink: 0 }}>
+          <LogoMark size={36} />
         </div>
 
         <ClientSwitcher clients={clients} projects={projects} activeClientId={activeClientId} onSwitch={switchClient} onRename={renameClient} onCreate={createClient} onArchive={archiveClient} onUnarchive={unarchiveClient} onDeletePermanently={deleteClientPermanently} />
