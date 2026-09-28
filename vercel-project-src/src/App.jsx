@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/react";
 
 // ─── window.storage shim (remplace l'API artifact-preview par localStorage) ──
 if (typeof window !== "undefined" && !window.storage) {
@@ -2998,7 +2999,7 @@ function ClientSwitcher({ clients, projects, activeClientId, onSwitch, onRename,
   );
 }
 
-export default function App() {
+function AppContent() {
   const [projects, setProjects] = useState(null);
   const [clients, setClients] = useState([{ id: "c1", name: "SFR" }]);
   const [activeClientId, setActiveClientId] = useState("c1");
@@ -3370,6 +3371,10 @@ export default function App() {
           </label>
         </div>
 
+        <div style={{ marginBottom: 10 }}>
+          <UserButton appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
+        </div>
+
         {/* Save indicator */}
         <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
           <div style={{
@@ -3389,5 +3394,21 @@ export default function App() {
         {activePage === "settings"  && <PlaceholderPage label="Réglages" />}
       </div>
     </div>
+  );
+}
+
+// ─── Point d'entrée réel : bloque l'accès tant que la personne n'est pas connectée ──
+export default function App() {
+  return (
+    <>
+      <SignedOut>
+        <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F5F6F8" }}>
+          <SignIn />
+        </div>
+      </SignedOut>
+      <SignedIn>
+        <AppContent />
+      </SignedIn>
+    </>
   );
 }
