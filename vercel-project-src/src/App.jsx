@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/react";
+import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
 
 // ─── window.storage shim (remplace l'API artifact-preview par localStorage) ──
 if (typeof window !== "undefined" && !window.storage) {
