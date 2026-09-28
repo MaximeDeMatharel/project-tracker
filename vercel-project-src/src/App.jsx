@@ -2382,9 +2382,12 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
     const thisMonday = new Date(getWeekStart(today()));
     const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
 
-    // Numéro de semaine calculé par rapport à la référence : semaine actuelle = 39
-    const weeksDiff = Math.round((monday - thisMonday) / (7 * 24 * 60 * 60 * 1000));
-    const weekNumber = 39 + weeksDiff;
+    // Numéro de semaine calculé par rapport à une date calendaire fixe :
+    // le lundi 21 septembre 2026 correspond à la semaine ISO 39.
+    const ANCHOR_MONDAY = new Date("2026-09-21T00:00:00");
+    const ANCHOR_WEEK_NUMBER = 39;
+    const weeksDiff = Math.round((monday - ANCHOR_MONDAY) / (7 * 24 * 60 * 60 * 1000));
+    const weekNumber = ANCHOR_WEEK_NUMBER + weeksDiff;
 
     if (weekStart === thisMonday.toISOString().slice(0, 10)) return `Cette semaine · S${weekNumber}`;
     if (weekStart === lastMonday.toISOString().slice(0, 10)) return `Semaine dernière · S${weekNumber}`;
