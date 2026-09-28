@@ -1064,6 +1064,46 @@ function EditableStakeholders({ stakeholders, onChange }) {
   );
 }
 
+function PersonFilterDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const info = ASSIGNEE_INFO[value];
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: "6px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
+        {value === "all" ? (
+          <span style={{ width: 20, height: 20, borderRadius: "50%", background: T.textXMuted, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IC.User /></span>
+        ) : (
+          <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{info?.abbr || value[0]}</span>
+        )}
+        <span style={{ fontSize: 12, color: T.textPrimary, flex: 1 }}>{value === "all" ? "Tout le monde" : value}</span>
+        <span style={{ display: "flex", color: T.textMuted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}><IC.Chevron /></span>
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 41, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.14)", overflow: "hidden" }}>
+            <button onClick={() => { onChange("all"); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", background: value === "all" ? T.bgSelected : "transparent", border: "none", cursor: "pointer", fontSize: 12, color: T.textPrimary, textAlign: "left" }}>
+              <span style={{ width: 20, height: 20, borderRadius: "50%", background: T.textXMuted, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IC.User /></span>
+              Tout le monde
+            </button>
+            {ASSIGNEE_OPTIONS.map(name => {
+              const i = ASSIGNEE_INFO[name];
+              return (
+                <button key={name} onClick={() => { onChange(name); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", background: value === name ? T.bgSelected : "transparent", border: "none", cursor: "pointer", fontSize: 12, color: T.textPrimary, textAlign: "left" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: i?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i?.abbr || name[0]}</span>
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EditableAssignee({ assignee, onChange }) {
   const [editing, setEditing] = useState(false);
   const ref = useRef();
@@ -1716,7 +1756,11 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     futur:       filtered.filter(p => p.status === "futur"),
     done:        filtered.filter(p => p.status === "done"),
   };
-  const counts = Object.fromEntries(Object.entries(STATUS_CONFIG).map(([k]) => [k, projects.filter(p => p.status === k).length]));
+  const assigneeFilteredProjects = useMemo(
+    () => projects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    [projects, filterAssignee]
+  );
+  const counts = Object.fromEntries(Object.entries(STATUS_CONFIG).map(([k]) => [k, assigneeFilteredProjects.filter(p => p.status === k).length]));
 
   function renderSection(statusKey) {
     const items = sections[statusKey];
@@ -1751,8 +1795,11 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
               <IC.Plus />
             </button>
           </div>
+          <div style={{ marginBottom: 10 }}>
+            <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
+          </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-            {[{ key: "all", label: "Tous", count: projects.length }, { key: "in_progress", label: "En cours", count: counts.in_progress, color: T.inProgress }, { key: "waiting", label: "En attente", count: counts.waiting, color: T.waiting }, { key: "blocked", label: "Bloqué", count: counts.blocked, color: "#DC2626" }, { key: "futur", label: "Futur", count: counts.futur, color: T.futur }, { key: "done", label: "Terminé", count: counts.done, color: T.done }].map(f => {
+            {[{ key: "all", label: "Tous", count: assigneeFilteredProjects.length }, { key: "in_progress", label: "En cours", count: counts.in_progress, color: T.inProgress }, { key: "waiting", label: "En attente", count: counts.waiting, color: T.waiting }, { key: "blocked", label: "Bloqué", count: counts.blocked, color: "#DC2626" }, { key: "futur", label: "Futur", count: counts.futur, color: T.futur }, { key: "done", label: "Terminé", count: counts.done, color: T.done }].map(f => {
               const active = filterStatus === f.key;
               const col = f.color || T.textSecondary;
               return <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600, border: `1.5px solid ${active ? col : T.border}`, background: active ? col : "transparent", color: active ? "#fff" : T.textSecondary, cursor: "pointer", transition: "all 0.12s" }}>{f.label} <span style={{ opacity: 0.75 }}>{f.count}</span></button>;
@@ -1762,12 +1809,6 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
             <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: T.textMuted }}><IC.Search /></span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ width: "100%", boxSizing: "border-box", padding: "7px 28px 7px 30px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
             {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2 }}><IC.X /></button>}
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
-              <option value="all">Tout le monde</option>
-              {ASSIGNEE_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
           </div>
           </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 16px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
