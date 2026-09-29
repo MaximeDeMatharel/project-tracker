@@ -694,7 +694,7 @@ function EditableText({ value, onChange, style = {}, multiline = false, placehol
 
   if (!editing) {
     return (
-      <span onClick={() => setEditing(true)} title="Cliquer pour modifier" style={{ cursor: "text", borderBottom: "1px dashed transparent", transition: "border-color 0.15s", ...style }}
+      <span onClick={() => setEditing(true)} title="Cliquer pour modifier" style={{ cursor: "text", borderBottom: "1px dashed transparent", transition: "border-color 0.15s", whiteSpace: multiline ? "pre-wrap" : "normal", ...style }}
         onMouseEnter={e => e.currentTarget.style.borderBottomColor = T.border}
         onMouseLeave={e => e.currentTarget.style.borderBottomColor = "transparent"}>
         {value || <span style={{ color: T.textMuted, fontStyle: "italic" }}>{placeholder}</span>}
@@ -933,7 +933,7 @@ function TimelineEntry({ entry, isLast, onDelete, onEdit }) {
         </div>
 
         {/* Summary text */}
-        <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.55 }}>{entry.text}</div>
+        <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{entry.text}</div>
 
         {/* Waiting tag */}
         {entry.waitingTag && (
@@ -2763,7 +2763,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           )}
                           {e.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
                         </div>
-                        <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5 }}>
+                        <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
                           <span style={{ fontSize: 10, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 6 }}>{cfg.label}</span>
                           {e.text}
                         </div>
