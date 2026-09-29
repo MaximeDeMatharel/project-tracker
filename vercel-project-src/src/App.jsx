@@ -165,7 +165,7 @@ function projectToAirtableFields(p) {
   if (p.jiraKey) fields["Clé Jira"] = p.jiraKey;
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
   if (p.clientId) fields["Client"] = [p.clientId];
-  if (p.assignee !== undefined) fields["Personnes"] = p.assignee || null;
+  fields["Personnes"] = getAssignees(p);
   return fields;
 }
 
@@ -187,7 +187,7 @@ function airtableFieldsToProject(record) {
     jiraLinks: f["Lien Jira"] ? [{ id: "primary", url: f["Lien Jira"], key: f["Clé Jira"] || "" }] : [],
     lastActivity: f["Dernière activité"] || null,
     clientId: clientLinks[0] || null,
-    assignee: f["Personnes"] || null,
+    assignees: Array.isArray(f["Personnes"]) ? f["Personnes"] : (f["Personnes"] ? [f["Personnes"]] : []),
     createdAt: record.createdTime,
     timeline: [],
   };
@@ -467,6 +467,13 @@ const ASSIGNEE_INFO = {
   Estelle: { abbr: "E",   color: "#DB2777" },
   Morgan:  { abbr: "Mo",  color: "#16A34A" },
 };
+
+// Liste des personnes d'un sujet — compatible avec l'ancien format (une seule personne)
+function getAssignees(p) {
+  if (Array.isArray(p?.assignees)) return p.assignees;
+  if (p?.assignee) return [p.assignee];
+  return [];
+}
 
 // ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -775,7 +782,7 @@ function AddActivityModal({ project, onClose, onAdd }) {
 function AddSubjectModal({ onClose, onAdd }) {
   const { user } = useUser();
   const defaultAssignee = ASSIGNEE_OPTIONS.includes(user?.firstName) ? user.firstName : null;
-  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", stakeholders: "", description: "", nextAction: "", assignee: defaultAssignee });
+  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", stakeholders: "", description: "", nextAction: "", assignees: defaultAssignee ? [defaultAssignee] : [] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const inputStyle = { width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" };
   const label = (t) => <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 6 }}>{t}</label>;
@@ -797,15 +804,15 @@ function AddSubjectModal({ onClose, onAdd }) {
           <div>
             {label("Qui travaille dessus ?")}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {[null, ...ASSIGNEE_OPTIONS].map(name => {
-                const active = form.assignee === name;
-                const info = name ? ASSIGNEE_INFO[name] : null;
+              {ASSIGNEE_OPTIONS.map(name => {
+                const active = form.assignees.includes(name);
+                const info = ASSIGNEE_INFO[name];
                 return (
-                  <button key={name || "none"} type="button" onClick={() => set("assignee", name)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px 4px 4px", borderRadius: 20, border: `1.5px solid ${active ? (info?.color || T.textSecondary) : T.border}`, background: active ? `${info?.color || T.textSecondary}14` : "transparent", cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 500, color: T.textPrimary }}>
+                  <button key={name} type="button" onClick={() => set("assignees", active ? form.assignees.filter(n => n !== name) : [...form.assignees, name])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px 4px 4px", borderRadius: 20, border: `1.5px solid ${active ? (info?.color || T.textSecondary) : T.border}`, background: active ? `${info?.color || T.textSecondary}14` : "transparent", cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 500, color: T.textPrimary }}>
                     <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.textXMuted, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {info ? info.abbr : <IC.User />}
+                      {info?.abbr || name[0]}
                     </span>
-                    {name || "Personne"}
+                    {name}
                   </button>
                 );
               })}
@@ -1139,49 +1146,59 @@ function useAssigneeFilter() {
   return [value, setValue];
 }
 
-function EditableAssignee({ assignee, onChange }) {
-  const [editing, setEditing] = useState(false);
-  const ref = useRef();
+function EditableAssignees({ assignees, onChange }) {
+  const [open, setOpen] = useState(false);
+  const list = assignees || [];
 
-  useEffect(() => { if (editing && ref.current) ref.current.focus(); }, [editing]);
-
-  if (editing) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <IC.User />
-        <select
-          ref={ref}
-          value={assignee || ""}
-          onChange={e => { onChange(e.target.value || null); setEditing(false); }}
-          onBlur={() => setEditing(false)}
-          style={{ fontSize: 12, padding: "3px 8px", border: `1px solid ${T.accent}`, borderRadius: 6, outline: "none", fontFamily: "inherit", color: T.textPrimary, background: T.accentBg, cursor: "pointer" }}
-        >
-          <option value="">Non assigné</option>
-          {ASSIGNEE_OPTIONS.map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
-      </div>
-    );
-  }
-
-  if (assignee) {
-    const info = ASSIGNEE_INFO[assignee];
-    return (
-      <button onClick={() => setEditing(true)} title="Modifier qui travaille sur ce sujet" style={{ display: "flex", alignItems: "center", gap: 6, color: T.textSecondary, fontSize: 12, background: "none", border: "none", cursor: "pointer", padding: "3px 6px", borderRadius: 6, transition: "background 0.12s" }}
-        onMouseEnter={e => e.currentTarget.style.background = T.bgHover}
-        onMouseLeave={e => e.currentTarget.style.background = "none"}>
-        <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {info?.abbr || assignee[0]}
-        </span>
-        {assignee}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.4 }}><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-      </button>
-    );
+  function toggle(name) {
+    onChange(list.includes(name) ? list.filter(n => n !== name) : [...list, name]);
   }
 
   return (
-    <button onClick={() => setEditing(true)} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 500, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
-      <IC.User />Qui travaille dessus ?
-    </button>
+    <div style={{ position: "relative" }}>
+      {list.length > 0 ? (
+        <button onClick={() => setOpen(v => !v)} title="Modifier qui travaille sur ce sujet" style={{ display: "flex", alignItems: "center", gap: 6, color: T.textSecondary, fontSize: 12, background: "none", border: "none", cursor: "pointer", padding: "3px 6px", borderRadius: 6, transition: "background 0.12s" }}
+          onMouseEnter={e => e.currentTarget.style.background = T.bgHover}
+          onMouseLeave={e => e.currentTarget.style.background = "none"}>
+          <span style={{ display: "flex" }}>
+            {list.map((name, i) => {
+              const info = ASSIGNEE_INFO[name];
+              return (
+                <span key={name} style={{ width: 22, height: 22, boxSizing: "border-box", borderRadius: "50%", border: `2px solid ${T.bgCard}`, marginLeft: i === 0 ? 0 : -7, background: info?.color || T.accent, color: "#fff", fontSize: 8, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {info?.abbr || name[0]}
+                </span>
+              );
+            })}
+          </span>
+          {list.join(", ")}
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.4 }}><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+        </button>
+      ) : (
+        <button onClick={() => setOpen(true)} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 500, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+          <IC.User />Qui travaille dessus ?
+        </button>
+      )}
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 41, minWidth: 190, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.14)", padding: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: 0.4, padding: "4px 8px 6px" }}>Qui travaille dessus ?</div>
+            {ASSIGNEE_OPTIONS.map(name => {
+              const info = ASSIGNEE_INFO[name];
+              const active = list.includes(name);
+              return (
+                <button key={name} onClick={() => toggle(name)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 8px", background: active ? T.bgSelected : "transparent", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, color: T.textPrimary, textAlign: "left" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{info?.abbr || name[0]}</span>
+                  <span style={{ flex: 1, fontWeight: active ? 700 : 500 }}>{name}</span>
+                  {active && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke={T.accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1525,7 +1542,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           <EditableStakeholders stakeholders={project.stakeholders || []} onChange={v => patch({ stakeholders: v })} />
 
           {/* Assignees — qui travaille dessus */}
-          <EditableAssignee assignee={project.assignee || null} onChange={v => patch({ assignee: v })} />
+          <EditableAssignees assignees={getAssignees(project)} onChange={v => patch({ assignees: v, assignee: null })} />
 
           {project.lastActivity && (
             <div style={{ display: "flex", alignItems: "center", gap: 5, color: T.textMuted, fontSize: 12 }}>
@@ -1779,7 +1796,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     return projects.filter(p => {
       const pPlats = p.platforms || [];
       const matchQ = !q || p.title.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.jiraKey?.toLowerCase().includes(q) || (p.stakeholders || []).some(s => s.toLowerCase().includes(q));
-      return matchQ && (filterStatus === "all" || p.status === filterStatus) && (filterPlatform === "all" || pPlats.includes(filterPlatform)) && (filterAssignee === "all" || p.assignee === filterAssignee);
+      return matchQ && (filterStatus === "all" || p.status === filterStatus) && (filterPlatform === "all" || pPlats.includes(filterPlatform)) && (filterAssignee === "all" || getAssignees(p).includes(filterAssignee));
     });
   }, [projects, search, filterStatus, filterPlatform, filterAssignee]);
 
@@ -1792,7 +1809,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     done:        filtered.filter(p => p.status === "done"),
   };
   const assigneeFilteredProjects = useMemo(
-    () => projects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    () => projects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
     [projects, filterAssignee]
   );
   const counts = Object.fromEntries(Object.entries(STATUS_CONFIG).map(([k]) => [k, assigneeFilteredProjects.filter(p => p.status === k).length]));
@@ -1993,7 +2010,7 @@ function KanbanPage({ projects: allProjects, onUpdate }) {
   const dragId = useRef(null);
 
   const projects = useMemo(
-    () => allProjects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
     [allProjects, filterAssignee]
   );
 
@@ -2761,7 +2778,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const [waitingCollapsed, setWaitingCollapsed] = useState(false);
   const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const projects = useMemo(
-    () => allProjects.filter(p => filterAssignee === "all" || p.assignee === filterAssignee),
+    () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
     [allProjects, filterAssignee]
   );
   const now = new Date();
