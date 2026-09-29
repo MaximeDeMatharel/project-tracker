@@ -110,7 +110,7 @@ const AT_TO_PRIORITY = Object.fromEntries(Object.entries(PRIORITY_TO_AT).map(([k
 const TYPE_TO_AT = { design: "Design", relance: "Relance", feedback: "Feedback", validation: "Validation", update: "Update", action: "Action", note: "Note" };
 const AT_TO_TYPE = Object.fromEntries(Object.entries(TYPE_TO_AT).map(([k, v]) => [v, k]));
 
-const PLATFORM_TO_AT = { TV: "TV", Web: "Web", Mobile: "Mobile", STB: "STB", "STB Less": "STBLess", Connect: "Connect", Other: "Other" };
+const PLATFORM_TO_AT = { TV: "TV", Web: "Web", Mobile: "Mobile", STB: "STB", "STB Less": "STBLess", STB7: "STB7", Connect: "Connect", Other: "Other" };
 const AT_TO_PLATFORM = Object.fromEntries(Object.entries(PLATFORM_TO_AT).map(([k, v]) => [v, k]));
 
 async function airtableRequest(table, path = "", options = {}) {
@@ -163,6 +163,7 @@ function projectToAirtableFields(p) {
   if (p.platforms) fields["Plateforme"] = p.platforms.map(pl => PLATFORM_TO_AT[pl] || pl).filter(Boolean);
   if (p.jiraUrl) fields["Lien Jira"] = p.jiraUrl;
   if (p.jiraKey) fields["Clé Jira"] = p.jiraKey;
+  if (p.figmaUrl) fields["Lien Figma"] = p.figmaUrl;
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
   if (p.clientId) fields["Client"] = [p.clientId];
   fields["Personnes"] = getAssignees(p);
@@ -184,6 +185,7 @@ function airtableFieldsToProject(record) {
     stakeholders: (f["Interlocuteur"] || "").split(",").map(s => s.trim()).filter(Boolean),
     jiraUrl: f["Lien Jira"] || null,
     jiraKey: f["Clé Jira"] || null,
+    figmaUrl: f["Lien Figma"] || null,
     jiraLinks: f["Lien Jira"] ? [{ id: "primary", url: f["Lien Jira"], key: f["Clé Jira"] || "" }] : [],
     lastActivity: f["Dernière activité"] || null,
     clientId: clientLinks[0] || null,
@@ -457,6 +459,7 @@ const PLATFORM_COLORS = {
   Mobile:     "#DB2777",
   STB:        "#0891B2",
   "STB Less": "#0E7490",
+  STB7:       "#65A30D",
   Connect:    "#059669",
   Other:      "#D97706",
 };
@@ -560,6 +563,7 @@ const IC = {
   Search:  () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4"/><path d="M9.5 9.5l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   Plus:    () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2v9M2 6.5h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   Jira:    () => <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 005.058 5.488l5.058 5.49v.01l5.059-5.49A5.218 5.218 0 0011.571 11.513zM23.143 0H11.572A5.218 5.218 0 0016.63 5.489l5.057 5.49v.01l5.057-5.49A5.218 5.218 0 0023.143 0z"/></svg>,
+  Figma:   () => <svg width="11" height="11" viewBox="0 0 38 57" fill="none"><path d="M19 28.5a9.5 9.5 0 1119 0 9.5 9.5 0 01-19 0z" fill="#1ABCFE"/><path d="M0 47.5A9.5 9.5 0 019.5 38H19v9.5a9.5 9.5 0 11-19 0z" fill="#0ACF83"/><path d="M19 0v19h9.5a9.5 9.5 0 000-19H19z" fill="#FF7262"/><path d="M0 9.5A9.5 9.5 0 009.5 19H19V0H9.5A9.5 9.5 0 000 9.5z" fill="#F24E1E"/><path d="M0 28.5A9.5 9.5 0 009.5 38H19V19H9.5A9.5 9.5 0 000 28.5z" fill="#A259FF"/></svg>,
   Link:    () => <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M4 6a2 2 0 002.8 0l1.6-1.6a2 2 0 00-2.8-2.8l-.8.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M6 4a2 2 0 00-2.8 0L1.6 5.6a2 2 0 002.8 2.8l.8-.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   User:    () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5c0-2.2 2-3.5 4.5-3.5s4.5 1.3 4.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   Clock:   () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3"/><path d="M6 3.5V6l1.5 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
@@ -782,7 +786,7 @@ function AddActivityModal({ project, onClose, onAdd }) {
 function AddSubjectModal({ onClose, onAdd }) {
   const { user } = useUser();
   const defaultAssignee = ASSIGNEE_OPTIONS.includes(user?.firstName) ? user.firstName : null;
-  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", stakeholders: "", description: "", nextAction: "", assignees: defaultAssignee ? [defaultAssignee] : [] });
+  const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", figmaUrl: "", stakeholders: "", description: "", nextAction: "", assignees: defaultAssignee ? [defaultAssignee] : [] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const inputStyle = { width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" };
   const label = (t) => <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 6 }}>{t}</label>;
@@ -820,6 +824,7 @@ function AddSubjectModal({ onClose, onAdd }) {
           </div>
           <div>{label("Statut")}<select value={form.status} onChange={e => set("status", e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
           <div>{label("Lien Jira")}<input value={form.jiraUrl} onChange={e => set("jiraUrl", e.target.value)} placeholder="https://jira.tv.sfr.net/browse/…" style={inputStyle} /></div>
+          <div>{label("Lien Figma")}<input value={form.figmaUrl} onChange={e => set("figmaUrl", e.target.value)} placeholder="https://www.figma.com/design/…" style={inputStyle} /></div>
           <div>{label("Parties prenantes (virgule)")}<input value={form.stakeholders} onChange={e => set("stakeholders", e.target.value)} placeholder="Sylvie, Asmaa…" style={inputStyle} /></div>
           <div>{label("Description")}<textarea value={form.description} onChange={e => set("description", e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
           <div>{label("Prochaine action")}<input value={form.nextAction} onChange={e => set("nextAction", e.target.value)} placeholder="Ex: Envoyer proposition design à Sylvie" style={inputStyle} /></div>
@@ -829,7 +834,7 @@ function AddSubjectModal({ onClose, onAdd }) {
           <button onClick={() => {
             if (!form.title.trim()) return;
             const jiraKey = form.jiraUrl ? form.jiraUrl.split("/").pop() : null;
-            onAdd({ id: `p${Date.now()}`, ...form, jiraKey, jiraUrl: form.jiraUrl || null, stakeholders: form.stakeholders.split(",").map(s => s.trim()).filter(Boolean), tags: [], lastActivity: today(), timeline: [], createdAt: today() });
+            onAdd({ id: `p${Date.now()}`, ...form, jiraKey, jiraUrl: form.jiraUrl || null, figmaUrl: form.figmaUrl.trim() || null, stakeholders: form.stakeholders.split(",").map(s => s.trim()).filter(Boolean), tags: [], lastActivity: today(), timeline: [], createdAt: today() });
             onClose();
           }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer" }}>Créer</button>
         </div>
@@ -1041,6 +1046,57 @@ function EditableJira({ jiraLinks, onChange }) {
 }
 
 // ─── EDITABLE STAKEHOLDERS ────────────────────────────────────────────────────
+function EditableFigma({ figmaUrl, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(figmaUrl || "");
+  const ref = useRef();
+
+  useEffect(() => { setDraft(figmaUrl || ""); }, [figmaUrl]);
+  useEffect(() => { if (editing && ref.current) { ref.current.focus(); ref.current.select(); } }, [editing]);
+
+  function commit() {
+    const url = draft.trim();
+    onChange(url || null);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <IC.Figma />
+        <input
+          ref={ref}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(figmaUrl || ""); setEditing(false); } }}
+          placeholder="https://www.figma.com/design/…"
+          style={{ fontSize: 12, padding: "3px 8px", border: `1px solid ${T.accent}`, borderRadius: 6, outline: "none", fontFamily: "inherit", color: T.textPrimary, background: T.accentBg, width: 260 }}
+        />
+      </div>
+    );
+  }
+
+  if (figmaUrl) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <a href={figmaUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, textDecoration: "none", color: T.accent, fontSize: 12, fontWeight: 600 }}>
+          <IC.Figma />Figma<IC.Link />
+        </a>
+        <button onClick={() => setEditing(true)} title="Modifier le lien Figma" style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2, opacity: 0.45, display: "flex", alignItems: "center" }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={() => setEditing(true)} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 500, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+      <IC.Figma />Lien Figma
+    </button>
+  );
+}
+
 function EditableStakeholders({ stakeholders, onChange }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(stakeholders.join(", "));
@@ -1538,6 +1594,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
             }}
           />
 
+          {/* Figma — lien de maquette */}
+          <EditableFigma figmaUrl={project.figmaUrl || null} onChange={v => patch({ figmaUrl: v })} />
+
           {/* Stakeholders — editable */}
           <EditableStakeholders stakeholders={project.stakeholders || []} onChange={v => patch({ stakeholders: v })} />
 
@@ -1896,7 +1955,7 @@ const KANBAN_COLUMNS = [
   { key: "done",        label: "Terminé" },
 ];
 
-function KanbanCard({ project, onUpdate, isDragging }) {
+function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
   const platforms = Array.isArray(project.platforms) ? project.platforms : [];
   const lastEntry = sortEntries(project.timeline)[0];
   const lastWaiting = sortEntries(project.timeline).find(e => e.waitingTag);
@@ -1909,9 +1968,9 @@ function KanbanCard({ project, onUpdate, isDragging }) {
   }
 
   return (
-    <div style={{
-      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10,
-      padding: "12px 14px", marginBottom: 8, cursor: "grab",
+    <div onClick={onOpen} style={{
+      background: T.bgCard, border: `1px solid ${isSelected ? T.accent : T.border}`, borderRadius: 10,
+      padding: "12px 14px", marginBottom: 8, cursor: "pointer",
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 3px rgba(0,0,0,0.05)",
       opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s",
       userSelect: "none",
@@ -1963,7 +2022,7 @@ function KanbanCard({ project, onUpdate, isDragging }) {
   );
 }
 
-function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDragOver }) {
+function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDragOver, onOpen, selectedId }) {
   const cfg = STATUS_CONFIG[column.key];
   const count = projects.length;
   const isOver = dragOver === column.key;
@@ -1995,7 +2054,7 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
         )}
         {projects.map(p => (
           <div key={p.id} draggable onDragStart={() => onDragStart(p.id)}>
-            <KanbanCard project={p} />
+            <KanbanCard project={p} isSelected={p.id === selectedId} onOpen={() => onOpen(p.id)} />
           </div>
         ))}
       </div>
@@ -2003,9 +2062,21 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
   );
 }
 
-function KanbanPage({ projects: allProjects, onUpdate }) {
+function KanbanPage({ projects: allProjects, onUpdate, onDelete, onDeleteActivity, incomingSync, onSyncConsumed }) {
   const [dragOver, setDragOver] = useState(null);
   const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = allProjects.find(p => p.id === selectedId) || null;
+
+  // Échap ferme le panneau (sauf pendant la saisie dans un champ)
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = e => {
+      if (e.key === "Escape" && !["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
   const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const dragId = useRef(null);
 
@@ -2031,7 +2102,7 @@ function KanbanPage({ projects: allProjects, onUpdate }) {
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
       {/* Header */}
       <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Kanban</div>
@@ -2057,10 +2128,39 @@ function KanbanPage({ projects: allProjects, onUpdate }) {
               onDrop={() => handleDrop(col.key)}
               dragOver={dragOver}
               setDragOver={setDragOver}
+              onOpen={setSelectedId}
+              selectedId={selectedId}
             />
           ))}
         </div>
       </div>
+
+      {/* Panneau de détail : glisse depuis la droite et recouvre le tableau */}
+      {selected && (
+        <>
+          <style>{`@keyframes kanbanPanelIn { from { transform: translateX(48px); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes kanbanScrimIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+          <div onClick={() => setSelectedId(null)} style={{ position: "absolute", inset: 0, background: "rgba(15,22,35,0.32)", zIndex: 20, animation: "kanbanScrimIn 0.18s ease-out" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "min(780px, 92%)", background: T.bg, zIndex: 21, display: "flex", flexDirection: "column", borderLeft: `1px solid ${T.border}`, boxShadow: "-14px 0 44px rgba(0,0,0,0.18)", animation: "kanbanPanelIn 0.22s ease-out" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", background: T.bgCard, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, color: T.textMuted }}>Détail du sujet</span>
+              <button onClick={() => setSelectedId(null)} title="Fermer (Échap)" style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, color: T.textSecondary }}>
+                <IC.X /> Fermer
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <SubjectDetail
+                key={selected.id}
+                project={selected}
+                onUpdate={onUpdate}
+                onDelete={(id) => { onDelete(id); setSelectedId(null); }}
+                onDeleteActivity={onDeleteActivity}
+                incomingSync={incomingSync?.projectId === selected.id ? incomingSync : null}
+                onSyncConsumed={onSyncConsumed}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -3228,7 +3328,9 @@ function AppContent() {
       const { timeline, weeklyTime, ...projectChanges } = changes;
       if (Object.keys(projectChanges).length > 0) {
         const merged = { ...prevProject, ...projectChanges };
-        await airtableUpdate(AIRTABLE_TABLE_SUJET, id, projectToAirtableFields(merged));
+        const sujetFields = projectToAirtableFields(merged);
+        if ("figmaUrl" in projectChanges && !projectChanges.figmaUrl) sujetFields["Lien Figma"] = null;
+        await airtableUpdate(AIRTABLE_TABLE_SUJET, id, sujetFields);
       }
 
       if (timeline) {
@@ -3523,7 +3625,7 @@ function AppContent() {
       {/* ── PAGE ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", background: T.bg, minWidth: 0 }}>
         {activePage === "projects"  && <SubjectsPage projects={visibleProjects} onUpdate={updateProject} onAdd={addProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} targetProjectId={targetProjectId} onTargetConsumed={() => setTargetProjectId(null)} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
-        {activePage === "kanban"    && <KanbanPage projects={visibleProjects} onUpdate={updateProject} />}
+        {activePage === "kanban"    && <KanbanPage projects={visibleProjects} onUpdate={updateProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
         {activePage === "activity"  && <ActivityPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "dashboard" && <DashboardPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "settings"  && <PlaceholderPage label="Réglages" />}
