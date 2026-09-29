@@ -2635,8 +2635,13 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
       group.seenProjects.add(e.project.id);
       group.entries.push(e);
     }
+    // La semaine en cours est toujours affichée, même sans aucune activité
+    if (!groups.some(g => g.weekStart === currentWeekStart)) {
+      groups.push({ weekStart: currentWeekStart, entries: [], seenProjects: new Set() });
+      groups.sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+    }
     return groups;
-  }, [filtered]);
+  }, [filtered, currentWeekStart]);
 
   // Par défaut, seule la semaine actuelle est dépliée
   useEffect(() => {
@@ -2809,6 +2814,10 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                       </div>
                     );
                   })}
+
+                  {group.entries.length === 0 && (
+                    <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "6px 0 2px" }}>Aucune activité cette semaine</div>
+                  )}
 
                   <button onClick={() => setAddPickerWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "transparent", border: `1.5px dashed ${T.border}`, borderRadius: 12, cursor: "pointer", color: T.textMuted, fontSize: 12, fontWeight: 600 }}
                     onMouseEnter={ev => { ev.currentTarget.style.borderColor = T.accent; ev.currentTarget.style.color = T.accent; }}
