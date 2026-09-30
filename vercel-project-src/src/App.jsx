@@ -147,6 +147,13 @@ async function airtableUpdate(table, id, fields) {
   return data.records[0];
 }
 
+// Plusieurs enregistrements en une requête (10 maximum par requête chez Airtable)
+async function airtableBatchUpdate(table, records) {
+  for (let i = 0; i < records.length; i += 10) {
+    await airtableRequest(table, "", { method: "PATCH", body: JSON.stringify({ records: records.slice(i, i + 10) }) });
+  }
+}
+
 async function airtableDelete(table, id) {
   await airtableRequest(table, `?records[]=${id}`, { method: "DELETE" });
 }
@@ -164,10 +171,32 @@ function projectToAirtableFields(p) {
   if (p.jiraUrl) fields["Lien Jira"] = p.jiraUrl;
   if (p.jiraKey) fields["Clé Jira"] = p.jiraKey;
   if (p.figmaUrl) fields["Lien Figma"] = p.figmaUrl;
+  if (typeof p.order === "number") fields["Ordre"] = p.order;
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
   if (p.clientId) fields["Client"] = [p.clientId];
   fields["Personnes"] = getAssignees(p);
   return fields;
+}
+
+// Clé modifiée dans l'interface → champ(s) Airtable correspondant(s).
+// On n'envoie que ce qui a changé : un champ Airtable mal configuré ne bloque plus le reste.
+const CHANGE_TO_AT_FIELDS = {
+  title: ["Titre"], description: ["Description"], nextAction: ["Prochaine action"], stakeholders: ["Interlocuteur"],
+  status: ["Statut"], priority: ["Priorité"], platforms: ["Plateforme"],
+  jiraUrl: ["Lien Jira"], jiraKey: ["Clé Jira"], jiraLinks: ["Lien Jira", "Clé Jira"],
+  figmaUrl: ["Lien Figma"], lastActivity: ["Dernière activité"], clientId: ["Client"],
+  assignees: ["Personnes"], assignee: ["Personnes"], order: ["Ordre"],
+};
+function changedSujetFields(project, changedKeys) {
+  const all = projectToAirtableFields(project);
+  const out = {};
+  for (const key of changedKeys) {
+    for (const name of (CHANGE_TO_AT_FIELDS[key] || [])) {
+      // Champ absent = valeur vidée dans l'interface → on vide aussi Airtable
+      out[name] = name in all ? all[name] : null;
+    }
+  }
+  return out;
 }
 
 function airtableFieldsToProject(record) {
@@ -186,6 +215,7 @@ function airtableFieldsToProject(record) {
     jiraUrl: f["Lien Jira"] || null,
     jiraKey: f["Clé Jira"] || null,
     figmaUrl: f["Lien Figma"] || null,
+    order: typeof f["Ordre"] === "number" ? f["Ordre"] : undefined,
     jiraLinks: f["Lien Jira"] ? [{ id: "primary", url: f["Lien Jira"], key: f["Clé Jira"] || "" }] : [],
     lastActivity: f["Dernière activité"] || null,
     clientId: clientLinks[0] || null,
@@ -199,10 +229,13 @@ function activityToAirtableFields(entry, sujetRecordId) {
   const fields = {
     "Sujets": [sujetRecordId],
     "Texte": entry.text || "",
-    "Date": entry.date || today(),
+    "Date": String(entry.date || today()).slice(0, 10),
     "En attente de retour": !!entry.waitingTag,
     "Note complémentaire": entry.noteContent || "",
-    "Créé par": entry.createdBy || "",
+    // Liste à choix unique : jamais de chaîne vide, uniquement une option existante ou null
+    "Créé par": ASSIGNEE_OPTIONS.includes(entry.createdBy) ? entry.createdBy : null,
+    // Horodatage exact (ISO) : l'ordre des activités d'une même journée ne dépend plus de l'heure de création Airtable
+    "Horodatage": entry.createdAt || new Date().toISOString(),
   };
   if (entry.type && TYPE_TO_AT[entry.type]) fields["Type"] = TYPE_TO_AT[entry.type];
   return fields;
@@ -213,12 +246,12 @@ function airtableFieldsToActivity(record) {
   return {
     id: record.id,
     type: AT_TO_TYPE[f["Type"]] || "note",
-    date: f["Date"] || "",
+    date: String(f["Date"] || "").slice(0, 10),
     text: f["Texte"] || "",
     waitingTag: !!f["En attente de retour"],
     noteContent: f["Note complémentaire"] || "",
     createdBy: f["Créé par"] || null,
-    createdAt: record.createdTime,
+    createdAt: f["Horodatage"] || record.createdTime,
   };
 }
 
@@ -503,14 +536,70 @@ const NAV_ITEMS = [
 ];
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-const today = () => new Date().toISOString().slice(0, 10);
+// Date du jour selon le fuseau horaire local (et non UTC), au format YYYY-MM-DD
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+// Date la plus récente d'un historique d'activités (ou null s'il est vide)
+const latestDate = (timeline) => (timeline || []).reduce((max, e) => (e.date && e.date > max ? e.date : max), "") || null;
+// ── Ordre manuel des cartes du Kanban ──
+// Une carte classée à la main porte un nombre "order" ; les cartes jamais classées viennent ensuite, dans leur ordre d'origine.
+const byKanbanOrder = (list) => [
+  ...list.filter(p => typeof p.order === "number").sort((a, b) => a.order - b.order),
+  ...list.filter(p => typeof p.order !== "number"),
+];
+// Position "tout en haut" d'une colonne (nouveau sujet, ou changement de statut fait ailleurs que dans le Kanban)
+const topOrderFor = (projects, status, excludeId) => {
+  const orders = projects.filter(p => p.status === status && p.id !== excludeId && typeof p.order === "number").map(p => p.order);
+  return orders.length ? Math.min(...orders) - 1000 : 0;
+};
+// Calcule les changements (statut + ordre) pour déposer la carte `id` dans la colonne `targetStatus`,
+// juste avant la carte `beforeId` (ou en bas de colonne si beforeId est null). Renvoie { idSujet: { status?, order } }.
+function planKanbanMove(projects, id, targetStatus, beforeId) {
+  const moving = projects.find(p => p.id === id);
+  if (!moving || beforeId === id) return {}; // déposée sur elle-même : rien à faire
+  const fullColumn = byKanbanOrder(projects.filter(p => p.status === targetStatus));
+  const origIdx = fullColumn.findIndex(p => p.id === id);
+  const col = fullColumn.filter(p => p.id !== id);
+  let idx = beforeId ? col.findIndex(p => p.id === beforeId) : col.length;
+  if (idx < 0) idx = col.length;
+  if (moving.status === targetStatus && origIdx === idx) return {}; // même place : rien à enregistrer
+  const statusChange = moving.status !== targetStatus ? { status: targetStatus } : {};
+  const prev = col[idx - 1], next = col[idx];
+  if (col.every(p => typeof p.order === "number")) {
+    let value = null;
+    if (prev && next) { const mid = Math.floor((prev.order + next.order) / 2); if (mid > prev.order && mid < next.order) value = mid; }
+    else if (prev) value = prev.order + 1000;
+    else if (next) value = next.order - 1000;
+    else value = 0;
+    if (value !== null) return { [id]: { ...statusChange, order: value } }; // une seule carte à enregistrer
+  }
+  // Plus de place entre deux cartes, ou cartes jamais classées : on renumérote la colonne (1000, 2000, …)
+  const reordered = [...col.slice(0, idx), moving, ...col.slice(idx)];
+  const changes = {};
+  reordered.forEach((p, i) => {
+    const order = (i + 1) * 1000;
+    if (p.order !== order || p.id === id) changes[p.id] = { ...(p.id === id ? statusChange : {}), order };
+  });
+  return changes;
+}
+
+// Client affiché à l'arrivée : toujours SFR. Repli : le premier client non archivé (si SFR n'existe plus ou est archivé).
+const pickDefaultClient = (clients) =>
+  (clients || []).find(c => !c.archived && String(c.name || "").trim().toLowerCase() === "sfr")
+  || (clients || []).find(c => !c.archived)
+  || (clients || [])[0];
 function formatDate(d) {
   if (!d) return "";
   return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 }
 function timeAgo(d) {
   if (!d) return "";
-  const days = Math.floor((Date.now() - new Date(d)) / 86400000);
+  // Écart en jours calendaires locaux (une date "YYYY-MM-DD" est lue comme minuit local)
+  const [y, m, dd] = String(d).slice(0, 10).split("-").map(Number);
+  const now = new Date();
+  const days = Math.max(0, Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(y, m - 1, dd)) / 86400000));
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return "Hier";
   if (days < 7)   return `Il y a ${days}j`;
@@ -1540,16 +1629,19 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       createdAt: activity.createdAt || new Date().toISOString(),
       createdBy: user?.firstName || null,
     };
-    patch({ timeline: [...project.timeline, newEntry], lastActivity: activity.date });
+    const nextTimeline = [...project.timeline, newEntry];
+    patch({ timeline: nextTimeline, lastActivity: latestDate(nextTimeline) });
   }
 
   function deleteActivity(entryId) {
     onDeleteActivity?.(entryId);
-    patch({ timeline: project.timeline.filter(e => e.id !== entryId) });
+    const nextTimeline = project.timeline.filter(e => e.id !== entryId);
+    patch({ timeline: nextTimeline, lastActivity: latestDate(nextTimeline) });
   }
 
   function editActivity(entryId, changes) {
-    patch({ timeline: project.timeline.map(e => e.id === entryId ? { ...e, ...changes } : e) });
+    const nextTimeline = project.timeline.map(e => e.id === entryId ? { ...e, ...changes } : e);
+    patch({ timeline: nextTimeline, lastActivity: latestDate(nextTimeline) });
   }
 
   return (
@@ -1825,11 +1917,6 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
 
   const selected = projects.find(p => p.id === selectedId);
 
-  // Auto-select first project
-  useEffect(() => {
-    if (!selectedId && projects.length > 0) setSelectedId(projects[0].id);
-  }, [projects, selectedId]);
-
   // Navigate to target project from dashboard
   useEffect(() => {
     if (targetProjectId) {
@@ -1837,13 +1924,6 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
       onTargetConsumed?.();
     }
   }, [targetProjectId]);
-
-  // If selected got deleted
-  useEffect(() => {
-    if (selectedId && !projects.find(p => p.id === selectedId)) {
-      setSelectedId(projects[0]?.id || null);
-    }
-  }, [projects, selectedId]);
 
   const availablePlatforms = useMemo(() => {
     const all = projects.flatMap(p => p.platforms || []);
@@ -1867,6 +1947,31 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     futur:       filtered.filter(p => p.status === "futur"),
     done:        filtered.filter(p => p.status === "done"),
   };
+  // ── Sélection par défaut : la première carte de la liste affichée ──
+  const topProject = Object.keys(STATUS_CONFIG).map(k => sections[k]).find(list => list.length > 0)?.[0] || null;
+
+  // Rien de sélectionné (arrivée sur la page, données chargées plus tard) → première carte
+  useEffect(() => {
+    if (!selectedId && topProject && !targetProjectId) setSelectedId(topProject.id);
+  }, [selectedId, topProject, targetProjectId]);
+
+  // Sujet sélectionné supprimé → première carte
+  useEffect(() => {
+    if (selectedId && !projects.find(p => p.id === selectedId)) setSelectedId(topProject?.id || null);
+  }, [projects, selectedId, topProject]);
+
+  // Changement de filtre ou de recherche → la fiche passe sur la première carte de la nouvelle liste
+  // (sauf à l'arrivée depuis un autre écran avec un sujet précis à ouvrir)
+  const lastFilterKey = useRef(null);
+  const arrivedWithTarget = useRef(!!targetProjectId);
+  useEffect(() => {
+    const key = [filterStatus, filterAssignee, filterPlatform, search].join("|");
+    const isFirstRun = lastFilterKey.current === null;
+    const changed = !isFirstRun && lastFilterKey.current !== key;
+    lastFilterKey.current = key;
+    if (changed || (isFirstRun && !arrivedWithTarget.current)) setSelectedId(topProject?.id || null);
+  }, [filterStatus, filterAssignee, filterPlatform, search]);
+
   const assigneeFilteredProjects = useMemo(
     () => projects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
     [projects, filterAssignee]
@@ -2022,15 +2127,20 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
   );
 }
 
-function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDragOver, onOpen, selectedId }) {
+function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOver, setDragOver, onOpen, selectedId, dropBefore, onHoverSlot }) {
   const cfg = STATUS_CONFIG[column.key];
   const count = projects.length;
   const isOver = dragOver === column.key;
+  // Repère d'insertion : affiché avant la carte `beforeId` (ou en bas de colonne si beforeId est null)
+  const lineAt = (beforeId) => isOver && dropBefore && dropBefore.status === column.key && dropBefore.beforeId === beforeId;
+  const dropLine = (pos) => (
+    <div style={{ position: "absolute", left: 2, right: 2, [pos]: pos === "top" ? -5 : 3, height: 3, borderRadius: 2, background: cfg.color, boxShadow: `0 0 0 2px ${cfg.color}22`, pointerEvents: "none", zIndex: 2 }} />
+  );
 
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}
-      onDragOver={e => { e.preventDefault(); setDragOver(column.key); }}
+      onDragOver={e => { e.preventDefault(); setDragOver(column.key); onHoverSlot(column.key, null); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
       onDrop={e => { e.preventDefault(); setDragOver(null); onDrop(); }}
     >
@@ -2043,18 +2153,33 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
 
       {/* Cards zone */}
       <div style={{
-        flex: 1, overflowY: "auto", padding: "2px 2px 12px",
+        flex: 1, overflowY: "auto", padding: "6px 2px 12px",
         background: isOver ? `${cfg.color}08` : "transparent",
         borderRadius: 10, border: `2px dashed ${isOver ? cfg.color + "40" : "transparent"}`,
-        transition: "all 0.15s", minHeight: 60,
+        transition: "background 0.15s, border-color 0.15s", minHeight: 60,
         scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent`,
       }}>
         {count === 0 && !isOver && (
           <div style={{ textAlign: "center", color: T.textXMuted, fontSize: 12, padding: "24px 0" }}>Vide</div>
         )}
-        {projects.map(p => (
-          <div key={p.id} draggable onDragStart={() => onDragStart(p.id)}>
+        {projects.map((p, i) => (
+          <div
+            key={p.id}
+            style={{ position: "relative", display: "flow-root" }}
+            draggable
+            onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", p.id); onDragStart(p.id); }}
+            onDragEnd={onDragEnd}
+            onDragOver={e => {
+              e.preventDefault(); e.stopPropagation();
+              setDragOver(column.key);
+              const r = e.currentTarget.getBoundingClientRect();
+              // Moitié haute de la carte → avant elle ; moitié basse → avant la suivante (ou en bas de colonne)
+              onHoverSlot(column.key, e.clientY < r.top + r.height / 2 ? p.id : (projects[i + 1]?.id ?? null));
+            }}
+          >
+            {lineAt(p.id) && dropLine("top")}
             <KanbanCard project={p} isSelected={p.id === selectedId} onOpen={() => onOpen(p.id)} />
+            {i === projects.length - 1 && lineAt(null) && dropLine("bottom")}
           </div>
         ))}
       </div>
@@ -2062,7 +2187,7 @@ function KanbanColumn({ column, projects, onDragStart, onDrop, dragOver, setDrag
   );
 }
 
-function KanbanPage({ projects: allProjects, onUpdate, onDelete, onDeleteActivity, incomingSync, onSyncConsumed }) {
+function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDeleteActivity, incomingSync, onSyncConsumed }) {
   const [dragOver, setDragOver] = useState(null);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
@@ -2078,7 +2203,18 @@ function KanbanPage({ projects: allProjects, onUpdate, onDelete, onDeleteActivit
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedId]);
   const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
+
+  // Le sujet ouvert n'appartient plus au client affiché (changement de client) ou est supprimé :
+  // on oublie la sélection, pour que le panneau ne se rouvre pas tout seul au retour.
+  useEffect(() => {
+    if (selectedId && !allProjects.some(p => p.id === selectedId)) setSelectedId(null);
+  }, [allProjects, selectedId]);
+  // Changement de personne : le panneau se referme, comme la fiche se met à jour sur la page Sujets.
+  useEffect(() => { setSelectedId(null); }, [filterAssignee]);
+
   const dragId = useRef(null);
+  const dropRef = useRef(null);            // dernier emplacement survolé : { status, beforeId }
+  const [dropBefore, setDropBefore] = useState(null);
 
   const projects = useMemo(
     () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
@@ -2095,10 +2231,29 @@ function KanbanPage({ projects: allProjects, onUpdate, onDelete, onDeleteActivit
     );
   }, [projects, search]);
 
-  function handleDrop(targetStatus) {
-    if (!dragId.current) return;
-    onUpdate(dragId.current, { status: targetStatus });
+  function hoverSlot(status, beforeId) {
+    const cur = dropRef.current;
+    if (cur && cur.status === status && cur.beforeId === beforeId) return;
+    dropRef.current = { status, beforeId };
+    setDropBefore({ status, beforeId });
+  }
+  function endDrag() {
     dragId.current = null;
+    dropRef.current = null;
+    setDropBefore(null);
+    setDragOver(null);
+  }
+  function handleDrop(targetStatus) {
+    const id = dragId.current;
+    if (!id) return;
+    const slot = dropRef.current && dropRef.current.status === targetStatus ? dropRef.current : { status: targetStatus, beforeId: null };
+    // Le calcul se fait sur TOUS les sujets de la colonne (même ceux masqués par un filtre) pour garder un ordre cohérent
+    const changes = planKanbanMove(allProjects, id, targetStatus, slot.beforeId);
+    if (Object.keys(changes).length > 0) {
+      if (onReorder) onReorder(changes);
+      else Object.entries(changes).forEach(([pid, ch]) => onUpdate(pid, ch));
+    }
+    endDrag();
   }
 
   return (
@@ -2123,9 +2278,12 @@ function KanbanPage({ projects: allProjects, onUpdate, onDelete, onDeleteActivit
             <KanbanColumn
               key={col.key}
               column={col}
-              projects={filtered.filter(p => p.status === col.key)}
+              projects={byKanbanOrder(filtered.filter(p => p.status === col.key))}
               onDragStart={id => { dragId.current = id; }}
+              onDragEnd={endDrag}
               onDrop={() => handleDrop(col.key)}
+              dropBefore={dropBefore}
+              onHoverSlot={hoverSlot}
               dragOver={dragOver}
               setDragOver={setDragOver}
               onOpen={setSelectedId}
@@ -2865,8 +3023,10 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
           confirmLabel="Supprimer"
           onCancel={() => setConfirmDeleteEntry(null)}
           onConfirm={() => {
+            const nextTimeline = confirmDeleteEntry.project.timeline.filter(te => te.id !== confirmDeleteEntry.id);
             onUpdateProject(confirmDeleteEntry.project.id, {
-              timeline: confirmDeleteEntry.project.timeline.filter(te => te.id !== confirmDeleteEntry.id),
+              timeline: nextTimeline,
+              lastActivity: latestDate(nextTimeline),
             });
             setConfirmDeleteEntry(null);
           }}
@@ -3294,33 +3454,36 @@ function AppContent() {
           });
         });
 
+        // Une seule ligne "Temps" par sujet + semaine. S'il y a des doublons (anciens clics rapides), la plus récente fait foi.
+        const bestTemps = {};
+        let duplicateRows = 0;
         tempsRecords.forEach(r => {
           const f = r.fields || {};
-          const linked = f["Sujet"] || [];
-          const semaine = f["Semaine"];
-          const jours = f["Temps travaillé"] || 0;
-          linked.forEach(sujetId => {
-            if (!projectsById[sujetId] || !semaine) return;
-            if (!projectsById[sujetId].weeklyTime) projectsById[sujetId].weeklyTime = {};
-            if (!projectsById[sujetId]._weeklyTimeRecordIds) projectsById[sujetId]._weeklyTimeRecordIds = {};
-            projectsById[sujetId].weeklyTime[semaine] = jours;
-            projectsById[sujetId]._weeklyTimeRecordIds[semaine] = r.id;
+          const semaine = String(f["Semaine"] || "").slice(0, 10);
+          if (!semaine) return;
+          (f["Sujet"] || []).forEach(sujetId => {
+            if (!projectsById[sujetId]) return;
+            const key = `${sujetId}|${semaine}`;
+            if (bestTemps[key]) duplicateRows++;
+            if (!bestTemps[key] || String(r.createdTime || "") > String(bestTemps[key].r.createdTime || "")) bestTemps[key] = { sujetId, semaine, r };
           });
         });
+        Object.values(bestTemps).forEach(({ sujetId, semaine, r }) => {
+          const p = projectsById[sujetId];
+          if (!p.weeklyTime) p.weeklyTime = {};
+          if (!p._weeklyTimeRecordIds) p._weeklyTimeRecordIds = {};
+          p.weeklyTime[semaine] = r.fields["Temps travaillé"] || 0;
+          p._weeklyTimeRecordIds[semaine] = r.id;
+        });
+        if (duplicateRows > 0) console.warn(`[Airtable] ${duplicateRows} ligne(s) en double dans la table "Temps" (même sujet et même semaine) : la plus récente est utilisée. Tu peux supprimer les autres dans Airtable.`);
 
-        Object.values(projectsById).forEach(p => { p.timeline = sortEntries(p.timeline, "asc"); });
+        Object.values(projectsById).forEach(p => { p.timeline = sortEntries(p.timeline, "asc"); p.lastActivity = latestDate(p.timeline) || p.lastActivity; });
 
         const loadedClients = clientRecords.map(airtableFieldsToClient);
         setClients(loadedClients);
 
-        // Préférence locale (par navigateur) : dernier client actif
-        let savedActiveId = null;
-        try {
-          const r = await window.storage.get("active-client-id");
-          savedActiveId = r?.value;
-        } catch {}
-        const validActiveId = loadedClients.find(c => c.id === savedActiveId && !c.archived)?.id;
-        setActiveClientId(validActiveId || loadedClients.find(c => !c.archived)?.id || loadedClients[0]?.id || null);
+        // À l'arrivée, le client affiché est toujours SFR (et non le dernier client consulté)
+        setActiveClientId(pickDefaultClient(loadedClients)?.id || null);
 
         setProjects(Object.values(projectsById));
       } catch (e) {
@@ -3331,77 +3494,146 @@ function AppContent() {
     load();
   }, []);
 
-  // ── Diff-based sync to Airtable : chaque champ modifié part vers la bonne table ──
+  // ── Synchronisation Airtable ──
+  // File d'attente : une seule écriture Airtable à la fois par sujet (les écritures ne se chevauchent plus)
+  const syncChainRef = useRef({});
+  // Lignes de la table "Temps" déjà créées : "idSujet|semaine" → id Airtable.
+  // Indispensable pour les clics rapides sur le compteur : le 2e clic doit MODIFIER la ligne du 1er, pas en créer une autre.
+  const timeRowRef = useRef({});
+  // Id temporaire d'une activité créée dans l'interface → id réel donné par Airtable
+  const realIdRef = useRef({});
+  const realId = (tid) => realIdRef.current[tid] || tid;
+
+  function reportSyncError(context, err) {
+    console.error(`[Airtable] ${context}`, err);
+    setAirtableError(`${context}\n${err?.message || String(err)}`.slice(0, 900));
+    setSaveStatus("error");
+  }
+
   async function syncProjectChange(prevProject, id, changes) {
-    try {
-      const { timeline, weeklyTime, ...projectChanges } = changes;
-      if (Object.keys(projectChanges).length > 0) {
-        const merged = { ...prevProject, ...projectChanges };
-        const sujetFields = projectToAirtableFields(merged);
-        if ("figmaUrl" in projectChanges && !projectChanges.figmaUrl) sujetFields["Lien Figma"] = null;
-        await airtableUpdate(AIRTABLE_TABLE_SUJET, id, sujetFields);
-      }
+    const { timeline, weeklyTime, ...projectChanges } = changes;
+    let failed = false;
 
-      if (timeline) {
-        const nextIds = new Set(timeline.map(e => e.id));
-
+    // 1) Activités — en premier : c'est la donnée la plus précieuse, elle ne dépend plus des autres champs
+    if (timeline) {
+      try {
+        const nextIds = new Set(timeline.map(e => realId(e.id)));
         for (const e of (prevProject.timeline || [])) {
-          if (!nextIds.has(e.id)) {
-            await airtableDelete(AIRTABLE_TABLE_ACTIVITE, e.id).catch(() => {});
+          if (!nextIds.has(realId(e.id))) {
+            // Un enregistrement déjà supprimé (404) n'est pas une erreur
+            await airtableDelete(AIRTABLE_TABLE_ACTIVITE, realId(e.id)).catch(err => {
+              if (!String(err?.message).includes("Airtable 404")) throw err;
+            });
           }
         }
         for (const e of timeline) {
-          const prevEntry = (prevProject.timeline || []).find(pe => pe.id === e.id);
+          const prevEntry = (prevProject.timeline || []).find(pe => realId(pe.id) === realId(e.id));
           if (!prevEntry) {
             const created = await airtableCreate(AIRTABLE_TABLE_ACTIVITE, activityToAirtableFields(e, id));
+            realIdRef.current[e.id] = created.id;
+            // On remplace uniquement l'id : l'horodatage local est conservé (et déjà écrit dans Airtable)
             setProjects(prev => prev.map(p => p.id === id
-              ? { ...p, timeline: p.timeline.map(te => te.id === e.id ? { ...te, id: created.id, createdAt: created.createdTime } : te) }
+              ? { ...p, timeline: p.timeline.map(te => te.id === e.id ? { ...te, id: created.id } : te) }
               : p
             ));
-          } else if (JSON.stringify(prevEntry) !== JSON.stringify(e)) {
-            await airtableUpdate(AIRTABLE_TABLE_ACTIVITE, e.id, activityToAirtableFields(e, id));
+          } else if (JSON.stringify({ ...prevEntry, id: realId(prevEntry.id) }) !== JSON.stringify({ ...e, id: realId(e.id) })) {
+            await airtableUpdate(AIRTABLE_TABLE_ACTIVITE, realId(e.id), activityToAirtableFields(e, id));
           }
         }
+      } catch (err) {
+        failed = true;
+        reportSyncError("Activité non enregistrée dans Airtable", err);
       }
+    }
 
-      // ── Temps passé : une ligne par sujet + par semaine dans la table "Temps" ──
-      if (weeklyTime) {
+    // 2) Champs du sujet — uniquement ceux qui ont changé
+    const sujetFields = changedSujetFields({ ...prevProject, ...projectChanges }, Object.keys(projectChanges));
+    if (Object.keys(sujetFields).length > 0) {
+      try {
+        await airtableUpdate(AIRTABLE_TABLE_SUJET, id, sujetFields);
+      } catch (err) {
+        failed = true;
+        reportSyncError("Sujet non enregistré dans Airtable", err);
+      }
+    }
+
+    // 3) Temps passé : une ligne par sujet + par semaine dans la table "Temps"
+    if (weeklyTime) {
+      try {
         const prevWT = prevProject.weeklyTime || {};
-        const recordIds = prevProject._weeklyTimeRecordIds || {};
         for (const week of Object.keys(weeklyTime)) {
           if (weeklyTime[week] === prevWT[week]) continue;
-          if (recordIds[week]) {
-            await airtableUpdate(AIRTABLE_TABLE_TEMPS, recordIds[week], { "Temps travaillé": weeklyTime[week] });
+          const key = `${id}|${week}`;
+          const rowId = timeRowRef.current[key] || prevProject._weeklyTimeRecordIds?.[week];
+          if (rowId) {
+            await airtableUpdate(AIRTABLE_TABLE_TEMPS, rowId, { "Temps travaillé": weeklyTime[week] });
+            timeRowRef.current[key] = rowId;
           } else {
             const created = await airtableCreate(AIRTABLE_TABLE_TEMPS, {
               "Sujet": [id],
               "Semaine": week,
               "Temps travaillé": weeklyTime[week],
             });
+            timeRowRef.current[key] = created.id;
             setProjects(prev => prev.map(p => p.id === id
               ? { ...p, _weeklyTimeRecordIds: { ...(p._weeklyTimeRecordIds || {}), [week]: created.id } }
               : p
             ));
           }
         }
+      } catch (err) {
+        failed = true;
+        reportSyncError("Temps passé non enregistré dans Airtable", err);
       }
+    }
 
+    if (!failed) {
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
-    } catch (e) {
-      setAirtableError(e.message || String(e));
-      setSaveStatus("error");
     }
   }
 
   // ── Actions ──
   function updateProject(id, changes) {
     const prevProject = projects.find(p => p.id === id);
+    // Répare les ids temporaires d'activités dans un historique devenu périmé (ex. pendant un appel IA)
+    if (changes.timeline) {
+      changes = { ...changes, timeline: changes.timeline.map(e => realIdRef.current[e.id] ? { ...e, id: realIdRef.current[e.id] } : e) };
+    }
+    // Changement de statut hors Kanban : la carte arrive en haut de sa nouvelle colonne
+    if (prevProject && changes.status && changes.status !== prevProject.status && changes.order === undefined) {
+      changes = { ...changes, order: topOrderFor(projects, changes.status, id) };
+    }
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p));
     if (prevProject) {
       setSaveStatus("saving");
-      syncProjectChange(prevProject, id, changes);
+      const previous = syncChainRef.current[id] || Promise.resolve();
+      syncChainRef.current[id] = previous.then(() => syncProjectChange(prevProject, id, changes));
     }
+  }
+
+  // Plusieurs sujets modifiés d'un coup (réorganisation du Kanban) : une seule requête Airtable groupée
+  function reorderProjects(changesById) {
+    const ids = Object.keys(changesById);
+    if (ids.length === 0) return;
+    setProjects(prev => prev.map(p => changesById[p.id] ? { ...p, ...changesById[p.id] } : p));
+    setSaveStatus("saving");
+    // On attend la fin des écritures déjà en cours sur ces sujets, puis on enregistre
+    const pending = Promise.all(ids.map(id => syncChainRef.current[id] || Promise.resolve()));
+    const job = pending.then(async () => {
+      try {
+        const records = ids.map(id => {
+          const base = projects.find(p => p.id === id) || {};
+          return { id, fields: changedSujetFields({ ...base, ...changesById[id] }, Object.keys(changesById[id])) };
+        });
+        await airtableBatchUpdate(AIRTABLE_TABLE_SUJET, records);
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 1500);
+      } catch (err) {
+        reportSyncError("Ordre des cartes non enregistré dans Airtable", err);
+      }
+    });
+    ids.forEach(id => { syncChainRef.current[id] = job; });
   }
 
   function deleteActivityGlobal(entryId) {
@@ -3411,8 +3643,9 @@ function AppContent() {
   async function addProject(project) {
     setSaveStatus("saving");
     try {
-      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields({ ...project, clientId: activeClientId }));
-      const newProject = { ...project, id: created.id, clientId: activeClientId, createdAt: created.createdTime, timeline: [] };
+      const order = topOrderFor(projects, project.status || "in_progress", null);   // nouveau sujet : en haut de sa colonne
+      const created = await airtableCreate(AIRTABLE_TABLE_SUJET, projectToAirtableFields({ ...project, clientId: activeClientId, order }));
+      const newProject = { ...project, id: created.id, clientId: activeClientId, order, createdAt: created.createdTime, timeline: [] };
       setProjects(prev => [newProject, ...prev]);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
@@ -3440,7 +3673,6 @@ function AppContent() {
   // ── Gestion des clients (Airtable) ──
   function switchClient(clientId) {
     setActiveClientId(clientId);
-    window.storage.set("active-client-id", clientId).catch(() => {});
   }
 
   async function renameClient(clientId, updates) {
@@ -3634,11 +3866,21 @@ function AppContent() {
       {/* ── PAGE ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", background: T.bg, minWidth: 0 }}>
         {activePage === "projects"  && <SubjectsPage projects={visibleProjects} onUpdate={updateProject} onAdd={addProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} targetProjectId={targetProjectId} onTargetConsumed={() => setTargetProjectId(null)} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
-        {activePage === "kanban"    && <KanbanPage projects={visibleProjects} onUpdate={updateProject} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
+        {activePage === "kanban"    && <KanbanPage projects={visibleProjects} onUpdate={updateProject} onReorder={reorderProjects} onDelete={deleteProject} onDeleteActivity={deleteActivityGlobal} incomingSync={incomingSync} onSyncConsumed={() => setIncomingSync(null)} />}
         {activePage === "activity"  && <ActivityPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "dashboard" && <DashboardPage projects={visibleProjects} onUpdateProject={updateProject} onNavigate={(page, id) => { setTargetProjectId(id || null); setActivePage(page); }} />}
         {activePage === "settings"  && <PlaceholderPage label="Réglages" />}
       </div>
+
+      {airtableError && (
+        <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", zIndex: 1100, width: "min(720px, 92vw)", boxSizing: "border-box", background: "#7F1D1D", color: "#fff", borderRadius: 10, padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", gap: 12, alignItems: "flex-start", fontSize: 12.5, lineHeight: 1.45 }}>
+          <div style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+            <div style={{ fontWeight: 700, marginBottom: 3 }}>Enregistrement Airtable impossible</div>
+            {airtableError}
+          </div>
+          <button onClick={() => setAirtableError(null)} style={{ flexShrink: 0, background: "rgba(255,255,255,0.16)", border: "none", color: "#fff", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Fermer</button>
+        </div>
+      )}
     </div>
   );
 }
