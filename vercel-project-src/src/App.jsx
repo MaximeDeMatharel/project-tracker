@@ -651,7 +651,7 @@ const IC = {
   Sparkle: () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.4 4.1L13.5 7l-4.1 1.4L8 12.5l-1.4-4.1L2.5 7l4.1-1.4L8 1.5z" fill="currentColor"/><path d="M13 11.5l0.6 1.6 1.6 0.6-1.6 0.6-0.6 1.6-0.6-1.6-1.6-0.6 1.6-0.6z" fill="currentColor"/></svg>,
   Search:  () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4"/><path d="M9.5 9.5l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   Plus:    () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2v9M2 6.5h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
-  Jira:    () => <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 005.058 5.488l5.058 5.49v.01l5.059-5.49A5.218 5.218 0 0011.571 11.513zM23.143 0H11.572A5.218 5.218 0 0016.63 5.489l5.057 5.49v.01l5.057-5.49A5.218 5.218 0 0023.143 0z"/></svg>,
+  Jira:    ({ size = 11 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 005.058 5.488l5.058 5.49v.01l5.059-5.49A5.218 5.218 0 0011.571 11.513zM23.143 0H11.572A5.218 5.218 0 0016.63 5.489l5.057 5.49v.01l5.057-5.49A5.218 5.218 0 0023.143 0z"/></svg>,
   Figma:   () => <svg width="11" height="11" viewBox="0 0 38 57" fill="none"><path d="M19 28.5a9.5 9.5 0 1119 0 9.5 9.5 0 01-19 0z" fill="#1ABCFE"/><path d="M0 47.5A9.5 9.5 0 019.5 38H19v9.5a9.5 9.5 0 11-19 0z" fill="#0ACF83"/><path d="M19 0v19h9.5a9.5 9.5 0 000-19H19z" fill="#FF7262"/><path d="M0 9.5A9.5 9.5 0 009.5 19H19V0H9.5A9.5 9.5 0 000 9.5z" fill="#F24E1E"/><path d="M0 28.5A9.5 9.5 0 009.5 38H19V19H9.5A9.5 9.5 0 000 28.5z" fill="#A259FF"/></svg>,
   Link:    () => <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M4 6a2 2 0 002.8 0l1.6-1.6a2 2 0 00-2.8-2.8l-.8.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M6 4a2 2 0 00-2.8 0L1.6 5.6a2 2 0 002.8 2.8l.8-.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
   User:    () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5c0-2.2 2-3.5 4.5-3.5s4.5 1.3 4.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
@@ -707,6 +707,23 @@ function PlatformSelector({ platforms, onChange }) {
         </>
       )}
     </div>
+  );
+}
+
+// ─── BADGE NUMÉRO JIRA (GFR-…) : même aspect partout, bien visible ───────────────
+const JIRA_BLUE = "#0052CC";
+const JIRA_MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+const JIRA_SIZES = { sm: { fs: 10, px: 5, py: 1, gap: 3 }, md: { fs: 11, px: 6, py: 1, gap: 3 }, lg: { fs: 13, px: 10, py: 3, gap: 5 } };
+function jiraBadgeStyle(size = "md") {
+  const s = JIRA_SIZES[size] || JIRA_SIZES.md;
+  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, fontFamily: JIRA_MONO, fontSize: s.fs, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.35, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px` };
+}
+function JiraKey({ value, size = "md", onClick, title }) {
+  if (!value) return null;
+  return (
+    <span data-jira-key={value} onClick={onClick} title={title} style={{ ...jiraBadgeStyle(size), cursor: onClick ? "pointer" : "inherit" }}>
+      {value}
+    </span>
   );
 }
 
@@ -1102,8 +1119,8 @@ function EditableJira({ jiraLinks, onChange }) {
           </div>
         ) : (
           <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, textDecoration: "none", color: T.accent, fontSize: 12, fontWeight: 600 }}>
-              <IC.Jira />{link.key}<IC.Link />
+            <a data-jira-key={link.key} href={link.url} target="_blank" rel="noopener noreferrer" title="Ouvrir dans Jira" style={{ ...jiraBadgeStyle("lg"), textDecoration: "none" }}>
+              {link.key}<IC.Link />
             </a>
             <button onClick={() => { setEditingId(link.id); setEditDraft(link.url); }} title="Modifier" style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2, opacity: 0.45, display: "flex", alignItems: "center" }}>
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
@@ -1876,6 +1893,7 @@ function SubjectCard({ project, isSelected, onClick }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+            <JiraKey value={project.jiraKey} size="sm" />
             {platforms.map(p => {
               const pc = PLATFORM_COLORS[p] || T.futur;
               return <span key={p} style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>{p}</span>;
@@ -1885,7 +1903,6 @@ function SubjectCard({ project, isSelected, onClick }) {
           </div>
           {last && <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last.text}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-            {project.jiraKey && <span style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace" }}>{project.jiraKey}</span>}
             {project.stakeholders?.length > 0 && <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>}
           </div>
         </div>
@@ -2080,8 +2097,9 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
       opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s",
       userSelect: "none",
     }}>
-      {/* Platform tags */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 7 }}>
+      {/* Numéro Jira + plateformes */}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center", marginBottom: 7 }}>
+        <JiraKey value={project.jiraKey} size="sm" />
         {platforms.map(p => {
           const pc = PLATFORM_COLORS[p] || T.futur;
           return <span key={p} style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3 }}>{p}</span>;
@@ -2102,9 +2120,6 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        {project.jiraKey && (
-          <span style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace" }}>{project.jiraKey}</span>
-        )}
         {project.stakeholders?.length > 0 && (
           <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
         )}
@@ -2332,7 +2347,6 @@ function NextActionItem({ project, onNavigate, onUpdateProject, isLast }) {
   const [copied, setCopied] = useState(false);
   const [validated, setValidated] = useState(false);
   const [validating, setValidating] = useState(false);
-  const cfg = STATUS_CONFIG[project.status];
   const platforms = project.platforms || [];
   const saveTimer = useRef(null);
   const STORAGE_KEY = `relance-text-${project.id}`;
@@ -2454,11 +2468,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
   return (
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 16px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        <div style={{ marginTop: 3, flexShrink: 0 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
-        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4, flexWrap: "wrap" }}>
+            <JiraKey value={project.jiraKey} size="md" />
             {project.priority && (() => { const pc = PRIORITY_CONFIG[project.priority]; return pc ? <span style={{ fontSize: 9, fontWeight: 800, color: pc.color, background: pc.bg, padding: "1px 6px", borderRadius: 3, letterSpacing: 0.4 }}>{pc.label}</span> : null; })()}
             {platforms.slice(0, 2).map(pl => {
               const pc = PLATFORM_COLORS[pl] || T.futur;
@@ -2468,7 +2480,6 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           </div>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 5, flex: 1, minWidth: 0 }}>
-              <IC.Arrow />
               <span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{project.nextAction}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -2648,15 +2659,13 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 2 }}>
+            <JiraKey value={project.jiraKey} size="sm" />
             {project.priority && (() => { const pc = PRIORITY_CONFIG[project.priority]; return pc ? <span style={{ fontSize: 9, fontWeight: 800, color: pc.color, background: pc.bg, padding: "1px 6px", borderRadius: 3, letterSpacing: 0.4 }}>{pc.label}</span> : null; })()}
             {platforms.slice(0, 2).map(pl => {
               const pc = PLATFORM_COLORS[pl] || T.futur;
               return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
             })}
             <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
-            {project.jiraKey && (
-              <span style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace", flexShrink: 0 }}>{project.jiraKey}</span>
-            )}
           </div>
           {project.stakeholders?.length > 0 && (
             <span style={{ fontSize: 11, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
@@ -2731,8 +2740,8 @@ function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose })
                 onMouseEnter={ev => ev.currentTarget.style.background = T.bgHover}
                 onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                  <JiraKey value={p.jiraKey} size="md" />
                   <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{p.title}</span>
-                  {p.jiraKey && <span style={{ fontSize: 11, color: T.textMuted, fontFamily: "monospace" }}>{p.jiraKey}</span>}
                 </div>
                 <div style={{ fontSize: 12, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {last ? last.text : "Aucune activité existante"}
@@ -2885,6 +2894,21 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                     return (
                       <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 120px 10px 12px", cursor: "pointer" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+                          <JiraKey
+                            value={e.project.jiraKey}
+                            size="md"
+                            title="Cliquer pour copier le lien Jira"
+                            onClick={ev => {
+                              ev.stopPropagation();
+                              const url = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || e.project.jiraKey;
+                              copyToClipboard(url).then(ok => {
+                                if (ok) {
+                                  setSnackbar(`"${url}" copié`);
+                                  setTimeout(() => setSnackbar(null), 2000);
+                                }
+                              });
+                            }}
+                          />
                           <span
                             onClick={ev => {
                               ev.stopPropagation();
@@ -2906,24 +2930,6 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                             const pc = PLATFORM_COLORS[pl] || T.futur;
                             return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
                           })}
-                          {e.project.jiraKey && (
-                            <span
-                              onClick={ev => {
-                                ev.stopPropagation();
-                                const url = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || e.project.jiraKey;
-                                copyToClipboard(url).then(ok => {
-                                  if (ok) {
-                                    setSnackbar(`"${url}" copié`);
-                                    setTimeout(() => setSnackbar(null), 2000);
-                                  }
-                                });
-                              }}
-                              title="Cliquer pour copier le lien Jira"
-                              style={{ fontSize: 10, color: T.textMuted, fontFamily: "monospace", cursor: "pointer" }}
-                            >
-                              {e.project.jiraKey}
-                            </span>
-                          )}
                           {e.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
                         </div>
                         <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
