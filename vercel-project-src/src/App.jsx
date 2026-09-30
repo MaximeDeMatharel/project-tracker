@@ -713,10 +713,10 @@ function PlatformSelector({ platforms, onChange }) {
 // ─── BADGE NUMÉRO JIRA (GFR-…) : même aspect partout, bien visible ───────────────
 const JIRA_BLUE = "#0052CC";
 const JIRA_MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-const JIRA_SIZES = { sm: { fs: 10, px: 5, py: 1, gap: 3 }, md: { fs: 11, px: 6, py: 1, gap: 3 }, lg: { fs: 13, px: 10, py: 3, gap: 5 } };
+const JIRA_SIZES = { sm: { fs: 10, px: 5, py: 1, gap: 3 }, md: { fs: 11, px: 6, py: 1, gap: 3 }, lg: { fs: 12, px: 6, py: 0, gap: 5, h: 22 } };
 function jiraBadgeStyle(size = "md") {
   const s = JIRA_SIZES[size] || JIRA_SIZES.md;
-  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, fontFamily: JIRA_MONO, fontSize: s.fs, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.35, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px` };
+  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, fontFamily: JIRA_MONO, fontSize: s.fs, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.35, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
 }
 function JiraKey({ value, size = "md", onClick, title }) {
   if (!value) return null;
@@ -1120,7 +1120,7 @@ function EditableJira({ jiraLinks, onChange }) {
         ) : (
           <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <a data-jira-key={link.key} href={link.url} target="_blank" rel="noopener noreferrer" title="Ouvrir dans Jira" style={{ ...jiraBadgeStyle("lg"), textDecoration: "none" }}>
-              {link.key}<IC.Link />
+              {link.key}
             </a>
             <button onClick={() => { setEditingId(link.id); setEditDraft(link.url); }} title="Modifier" style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2, opacity: 0.45, display: "flex", alignItems: "center" }}>
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
@@ -1143,7 +1143,7 @@ function EditableJira({ jiraLinks, onChange }) {
           />
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer" }}>
+        <button onClick={() => setAdding(true)} style={{ display: "flex", alignItems: "center", gap: 4, height: 22, boxSizing: "border-box", fontSize: 11, fontWeight: 600, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "0 9px", cursor: "pointer" }}>
           <IC.Plus />{jiraLinks.length === 0 && "Ajouter un lien Jira"}
         </button>
       )}
