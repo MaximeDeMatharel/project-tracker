@@ -2395,39 +2395,7 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
 
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
-// Bouton « copier » : copie le titre + le lien Jira séparés par une tabulation (se colle en 2 colonnes dans Excel)
-function CopyTitleButton({ project, onCopied, size = "md" }) {
-  const [copied, setCopied] = useState(false);
-  const px = size === "sm" ? 18 : 20;
-  function copy(ev) {
-    ev.stopPropagation();
-    const jiraUrl = project.jiraUrl || project.jiraLinks?.[0]?.url || "";
-    copyToClipboard(jiraUrl ? `${project.title}\t${jiraUrl}` : project.title).then(ok => {
-      if (!ok) return;
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-      onCopied?.(jiraUrl ? "Titre + lien Jira copiés" : `"${project.title}" copié`);
-    });
-  }
-  return (
-    <button
-      data-copy-title={project.id}
-      onClick={copy}
-      title="Copier le titre et le lien Jira (se colle en 2 colonnes dans Excel)"
-      aria-label="Copier le titre et le lien Jira"
-      style={{ width: px, height: px, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: copied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}
-      onMouseEnter={ev => { if (!copied) { ev.currentTarget.style.background = T.bgHover; ev.currentTarget.style.color = T.textPrimary; } }}
-      onMouseLeave={ev => { if (!copied) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textMuted; } }}>
-      {copied ? (
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      ) : (
-        <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-      )}
-    </button>
-  );
-}
-
-function NextActionItem({ project, onNavigate, onUpdateProject, onCopied, isLast }) {
+function NextActionItem({ project, onNavigate, onUpdateProject, isLast }) {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -2562,10 +2530,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
             {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="md" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="md" />}
           </div>
-          {/* Ligne 2 : le titre + le bouton copier */}
+          {/* Ligne 2 : le titre */}
           <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
             <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
-            <CopyTitleButton project={project} onCopied={onCopied} />
           </div>
           {/* Ligne 3 : la prochaine action */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
@@ -2622,7 +2589,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 }
 
 // ─── RELANCE ITEM ─────────────────────────────────────────────────────────────
-function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdateProject, onCopied, isLast }) {
+function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdateProject, isLast }) {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [relance, setRelance] = useState(null);
@@ -2754,10 +2721,9 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
             {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="sm" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
-          {/* Ligne 2 : le titre + le bouton copier */}
+          {/* Ligne 2 : le titre */}
           <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
             <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
-            <CopyTitleButton project={project} onCopied={onCopied} size="sm" />
           </div>
           {/* Ligne 3 : les interlocuteurs */}
           {project.stakeholders?.length > 0 && (
@@ -3164,13 +3130,6 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const [waitingCollapsed, setWaitingCollapsed] = useState(false);
-  const [snackbar, setSnackbar] = useState(null);
-  const snackbarTimer = useRef(null);
-  function showCopied(message) {
-    setSnackbar(message);
-    clearTimeout(snackbarTimer.current);
-    snackbarTimer.current = setTimeout(() => setSnackbar(null), 2000);
-  }
   const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const projects = useMemo(
     () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
@@ -3272,7 +3231,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {nextActions.map((p) => (
-                  <NextActionItem key={p.id} project={p} onNavigate={onNavigate} onUpdateProject={onUpdateProject} onCopied={showCopied} isLast={true} />
+                  <NextActionItem key={p.id} project={p} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
                 ))}
               </div>
             )}
@@ -3292,7 +3251,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {waiting.map(({ project: p, days }) => (
-                    <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} onCopied={showCopied} isLast={true} />
+                    <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
                   ))}
                 </div>
               )
@@ -3302,11 +3261,6 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
         </div>
 
       </div>
-      {snackbar && (
-        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 1000, background: "#1C1C1E", color: "#fff", fontSize: 13, fontWeight: 500, padding: "10px 20px", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.25)", pointerEvents: "none", whiteSpace: "nowrap" }}>
-          {snackbar}
-        </div>
-      )}
     </div>
   );
 }
