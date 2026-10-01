@@ -785,7 +785,7 @@ function StatusBadge({ value, onChange }) {
 }
 
 // ─── EDITABLE FIELD ───────────────────────────────────────────────────────────
-function EditableText({ value, onChange, style = {}, multiline = false, placeholder = "" }) {
+function EditableText({ value, onChange, style = {}, multiline = false, placeholder = "", minRows = 3, enterToSave = false }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef();
@@ -793,7 +793,12 @@ function EditableText({ value, onChange, style = {}, multiline = false, placehol
   useEffect(() => { setDraft(value); }, [value]);
   useEffect(() => { if (editing && ref.current) ref.current.focus(); }, [editing]);
 
+  const doneRef = useRef(false);
+  useEffect(() => { if (editing) doneRef.current = false; }, [editing]);
+
   function commit() {
+    if (doneRef.current) return;   // déjà enregistré (ex. Entrée puis perte de focus)
+    doneRef.current = true;
     setEditing(false);
     if (draft.trim() !== value) onChange(draft.trim() || value);
   }
@@ -810,8 +815,29 @@ function EditableText({ value, onChange, style = {}, multiline = false, placehol
 
   const sharedStyle = { border: `1px solid ${T.accent}`, borderRadius: 5, outline: "none", fontFamily: "inherit", background: T.accentBg, color: T.textPrimary, padding: "2px 6px", ...style, borderBottom: `1px solid ${T.accent}` };
 
+  const area = (
+    <textarea
+      ref={ref}
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === "Escape") { setDraft(value); setEditing(false); return; }
+        // Entrée valide (si enterToSave) ; Maj + Entrée = retour à la ligne ; Cmd/Ctrl + Entrée valide toujours
+        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && (enterToSave || e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          commit();
+        }
+      }}
+      style={{ ...sharedStyle, resize: "vertical", width: "100%", boxSizing: "border-box" }}
+      rows={Math.max(minRows, String(draft).split("\n").length)}
+    />
+  );
+
   return multiline
-    ? <textarea ref={ref} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === "Escape") { setDraft(value); setEditing(false); } }} style={{ ...sharedStyle, resize: "vertical", width: "100%", boxSizing: "border-box" }} rows={3} />
+    ? (enterToSave
+        ? <div style={{ width: "100%" }}>{area}<div style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>Entrée pour valider · Maj + Entrée pour un retour à la ligne</div></div>
+        : area)
     : <input ref={ref} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }} style={{ ...sharedStyle, width: "100%", boxSizing: "border-box" }} placeholder={placeholder} />;
 }
 
@@ -933,7 +959,7 @@ function AddSubjectModal({ onClose, onAdd }) {
           <div>{label("Lien Figma")}<input value={form.figmaUrl} onChange={e => set("figmaUrl", e.target.value)} placeholder="https://www.figma.com/design/…" style={inputStyle} /></div>
           <div>{label("Parties prenantes (virgule)")}<input value={form.stakeholders} onChange={e => set("stakeholders", e.target.value)} placeholder="Sylvie, Asmaa…" style={inputStyle} /></div>
           <div>{label("Description")}<textarea value={form.description} onChange={e => set("description", e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
-          <div>{label("Prochaine action")}<input value={form.nextAction} onChange={e => set("nextAction", e.target.value)} placeholder="Ex: Envoyer proposition design à Sylvie" style={inputStyle} /></div>
+          <div>{label("Prochaine action")}<textarea value={form.nextAction} onChange={e => set("nextAction", e.target.value)} placeholder="Ex: Envoyer proposition design à Sylvie" rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 22 }}>
           <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
@@ -1748,6 +1774,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               value={project.nextAction || ""}
               onChange={v => patch({ nextAction: v })}
               placeholder="Définir la prochaine action…"
+              multiline
+              enterToSave
+              minRows={2}
               style={{ fontSize: 13, color: T.accentText, fontWeight: 500, display: "block", width: "100%" }}
             />
             {aiError && (
@@ -2135,7 +2164,7 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
       {project.nextAction && (
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "flex-start", gap: 5 }}>
           <IC.Arrow />
-          <span style={{ fontSize: 11, color: T.accentText, lineHeight: 1.4 }}>{project.nextAction}</span>
+          <span style={{ fontSize: 11, color: T.accentText, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
         </div>
       )}
     </div>
@@ -2480,7 +2509,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           </div>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 5, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{project.nextAction}</span>
+              <span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               {message && (
