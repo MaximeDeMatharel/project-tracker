@@ -667,7 +667,7 @@ const IC = {
 function PlatformTag({ name, onRemove }) {
   const color = PLATFORM_COLORS[name] || T.futur;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color, background: `${color}12`, border: `1px solid ${color}25`, padding: "2px 6px 2px 8px", borderRadius: 5 }}>
+    <span data-platform-stamp={name} style={{ ...platformStampStyle(name, "lg"), gap: 4 }}>
       {name}
       {onRemove && (
         <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color, padding: 0, display: "flex", alignItems: "center", opacity: 0.7 }}>
@@ -712,11 +712,12 @@ function PlatformSelector({ platforms, onChange }) {
 
 // ─── BADGE NUMÉRO JIRA (GFR-…) : même aspect partout, bien visible ───────────────
 const JIRA_BLUE = "#0052CC";
-const JIRA_MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+// Réglages de texte COMMUNS au badge Jira et aux stamps de plateforme : même police, même épaisseur, même espacement des lettres
+const STAMP_TEXT = { fontFamily: "inherit", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", lineHeight: 1.35 };
 const JIRA_SIZES = { sm: { fs: 10, px: 5, py: 1, gap: 3 }, md: { fs: 11, px: 6, py: 1, gap: 3 }, lg: { fs: 12, px: 6, py: 0, gap: 5, h: 22 } };
 function jiraBadgeStyle(size = "md") {
   const s = JIRA_SIZES[size] || JIRA_SIZES.md;
-  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, fontFamily: JIRA_MONO, fontSize: s.fs, fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.35, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
+  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
 }
 function JiraKey({ value, size = "md", onClick, title }) {
   if (!value) return null;
@@ -727,13 +728,44 @@ function JiraKey({ value, size = "md", onClick, title }) {
   );
 }
 
+// ─── STAMP PLATEFORME (STB, STB LESS, CONNECT, TV…) : exactement les mêmes dimensions que le badge Jira ──
+// (bordure de 1 px transparente : invisible, mais elle garde la même hauteur que le badge Jira, qui a un liseré)
+// Boîte commune de tous les stamps (plateforme, priorité, attente) : mêmes dimensions que le badge Jira
+function stampBoxStyle(size = "md") {
+  const s = JIRA_SIZES[size] || JIRA_SIZES.md;
+  return { display: "inline-flex", alignItems: "center", flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", border: "1px solid transparent", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
+}
+function platformStampStyle(name, size = "md") {
+  const pc = PLATFORM_COLORS[name] || T.futur;
+  return { ...stampBoxStyle(size), color: pc, background: `${pc}12` };
+}
+function PlatformStamp({ name, size = "md" }) {
+  return <span data-platform-stamp={name} style={platformStampStyle(name, size)}>{name}</span>;
+}
+function PriorityStamp({ priority, size = "md" }) {
+  const pc = PRIORITY_CONFIG[priority];
+  if (!pc) return null;
+  return <span data-priority-stamp={priority} style={{ ...stampBoxStyle(size), color: pc.color, background: pc.bg }}>{pc.label}</span>;
+}
+// « Attente » : design volontairement différent des autres stamps (pastille arrondie + horloge), avec les couleurs de la
+// pastille « En attente de retour » de l'historique d'un sujet. Même hauteur et mêmes réglages de texte que les autres stamps.
+function WaitingStamp({ size = "md" }) {
+  const icon = { sm: 8, md: 9, lg: 11 }[size] || 9;
+  return (
+    <span data-waiting-stamp="1" style={{ ...stampBoxStyle(size), gap: 3, borderRadius: 999, textTransform: "none", color: "#D97706", background: "#FEF3C7", border: "1px solid #D9770630" }}>
+      <svg width={icon} height={icon} viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.4"/><path d="M5 2.8V5l1.5 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      Attente
+    </span>
+  );
+}
+
 // ─── PRIORITY BADGE ───────────────────────────────────────────────────────────
 function PriorityBadge({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const cfg = PRIORITY_CONFIG[value];
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={() => setOpen(v => !v)} style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: cfg ? cfg.color : T.textMuted, background: cfg ? cfg.bg : T.bgHover, padding: "3px 8px", borderRadius: 5, border: `1px solid ${cfg ? cfg.color + "30" : T.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+      <button data-priority-stamp={value || ""} onClick={() => setOpen(v => !v)} style={{ ...stampBoxStyle("lg"), color: cfg ? cfg.color : T.textMuted, background: cfg ? cfg.bg : T.bgHover, border: `1px solid ${cfg ? cfg.color + "30" : T.border}`, cursor: "pointer", gap: 4, textTransform: cfg ? "uppercase" : "none" }}>
         {cfg ? cfg.label : "Priorité"}<IC.Chevron />
       </button>
       {open && (
@@ -1863,7 +1895,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 9, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4 }}>{cfg.label}</span>
                       <span style={{ fontSize: 11, color: T.textMuted }}>{formatDate(a.date)}</span>
-                      {a.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
+                      {a.waitingTag && <WaitingStamp size="sm" />}
                     </div>
                     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.4 }}>{a.text}</div>
                   </div>
@@ -1912,7 +1944,6 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 
 // ─── PROJECT CARD ─────────────────────────────────────────────────────────────
 function SubjectCard({ project, isSelected, onClick }) {
-  const status = STATUS_CONFIG[project.status] || STATUS_CONFIG.futur;
   const platforms = Array.isArray(project.platforms) ? project.platforms : [];
   const last = sortEntries(project.timeline)[0];
   return (
@@ -1921,21 +1952,19 @@ function SubjectCard({ project, isSelected, onClick }) {
       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+          {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans aucun tag */}
+          <div data-card-tags style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", minHeight: 18, marginBottom: 4 }}>
             <JiraKey value={project.jiraKey} size="sm" />
-            {platforms.map(p => {
-              const pc = PLATFORM_COLORS[p] || T.futur;
-              return <span key={p} style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>{p}</span>;
-            })}
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.title}</span>
-            {project.priority && (() => { const pc = PRIORITY_CONFIG[project.priority]; return pc ? <span style={{ fontSize: 9, fontWeight: 800, color: pc.color, background: pc.bg, padding: "1px 5px", borderRadius: 3, flexShrink: 0 }}>{pc.label}</span> : null; })()}
+            {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
+            {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
+          {/* Ligne 2 : le titre, seul sur sa ligne */}
+          <div data-card-title style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{project.title}</div>
           {last && <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last.text}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
             {project.stakeholders?.length > 0 && <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>}
           </div>
         </div>
-        <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, marginTop: 5, background: status.color }} />
       </div>
     </button>
   );
@@ -2129,10 +2158,7 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
       {/* Numéro Jira + plateformes */}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center", marginBottom: 7 }}>
         <JiraKey value={project.jiraKey} size="sm" />
-        {platforms.map(p => {
-          const pc = PLATFORM_COLORS[p] || T.futur;
-          return <span key={p} style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3 }}>{p}</span>;
-        })}
+        {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
       </div>
 
       {/* Title */}
@@ -2369,7 +2395,39 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
 
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
 // ─── NEXT ACTION ITEM ─────────────────────────────────────────────────────────
-function NextActionItem({ project, onNavigate, onUpdateProject, isLast }) {
+// Bouton « copier » : copie le titre + le lien Jira séparés par une tabulation (se colle en 2 colonnes dans Excel)
+function CopyTitleButton({ project, onCopied, size = "md" }) {
+  const [copied, setCopied] = useState(false);
+  const px = size === "sm" ? 18 : 20;
+  function copy(ev) {
+    ev.stopPropagation();
+    const jiraUrl = project.jiraUrl || project.jiraLinks?.[0]?.url || "";
+    copyToClipboard(jiraUrl ? `${project.title}\t${jiraUrl}` : project.title).then(ok => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      onCopied?.(jiraUrl ? "Titre + lien Jira copiés" : `"${project.title}" copié`);
+    });
+  }
+  return (
+    <button
+      data-copy-title={project.id}
+      onClick={copy}
+      title="Copier le titre et le lien Jira (se colle en 2 colonnes dans Excel)"
+      aria-label="Copier le titre et le lien Jira"
+      style={{ width: px, height: px, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: copied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}
+      onMouseEnter={ev => { if (!copied) { ev.currentTarget.style.background = T.bgHover; ev.currentTarget.style.color = T.textPrimary; } }}
+      onMouseLeave={ev => { if (!copied) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textMuted; } }}>
+      {copied ? (
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      ) : (
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+      )}
+    </button>
+  );
+}
+
+function NextActionItem({ project, onNavigate, onUpdateProject, onCopied, isLast }) {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -2498,15 +2556,18 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 16px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4, flexWrap: "wrap" }}>
+          {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
+          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minHeight: 19, marginBottom: 4 }}>
             <JiraKey value={project.jiraKey} size="md" />
-            {project.priority && (() => { const pc = PRIORITY_CONFIG[project.priority]; return pc ? <span style={{ fontSize: 9, fontWeight: 800, color: pc.color, background: pc.bg, padding: "1px 6px", borderRadius: 3, letterSpacing: 0.4 }}>{pc.label}</span> : null; })()}
-            {platforms.slice(0, 2).map(pl => {
-              const pc = PLATFORM_COLORS[pl] || T.futur;
-              return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
-            })}
-            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
+            {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="md" />)}
+            {project.priority && <PriorityStamp priority={project.priority} size="md" />}
           </div>
+          {/* Ligne 2 : le titre + le bouton copier */}
+          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
+            <CopyTitleButton project={project} onCopied={onCopied} />
+          </div>
+          {/* Ligne 3 : la prochaine action */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 5, flex: 1, minWidth: 0 }}>
               <span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
@@ -2561,7 +2622,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 }
 
 // ─── RELANCE ITEM ─────────────────────────────────────────────────────────────
-function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdateProject, isLast }) {
+function RelanceItem({ project, days, waitingBadgeColor, onNavigate, onUpdateProject, onCopied, isLast }) {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [relance, setRelance] = useState(null);
@@ -2687,15 +2748,18 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 2 }}>
+          {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
+          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minHeight: 18, marginBottom: 3 }}>
             <JiraKey value={project.jiraKey} size="sm" />
-            {project.priority && (() => { const pc = PRIORITY_CONFIG[project.priority]; return pc ? <span style={{ fontSize: 9, fontWeight: 800, color: pc.color, background: pc.bg, padding: "1px 6px", borderRadius: 3, letterSpacing: 0.4 }}>{pc.label}</span> : null; })()}
-            {platforms.slice(0, 2).map(pl => {
-              const pc = PLATFORM_COLORS[pl] || T.futur;
-              return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
-            })}
-            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
+            {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="sm" />)}
+            {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
+          {/* Ligne 2 : le titre + le bouton copier */}
+          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
+            <CopyTitleButton project={project} onCopied={onCopied} size="sm" />
+          </div>
+          {/* Ligne 3 : les interlocuteurs */}
           {project.stakeholders?.length > 0 && (
             <span style={{ fontSize: 11, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
           )}
@@ -2789,7 +2853,22 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
   const [expandedWeeks, setExpandedWeeks] = useState(null); // null = pas encore initialisé
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(null); // { entry } à confirmer
   const [snackbar, setSnackbar] = useState(null);
-  const [addPickerWeek, setAddPickerWeek] = useState(null); // weekStart pour lequel le sélecteur est ouvert
+  const [addPickerWeek, setAddPickerWeek] = useState(null);
+  const [copiedEntryId, setCopiedEntryId] = useState(null);   // carte dont le bouton « copier » vient d'être utilisé
+
+  // Copie « titre + lien Jira » séparés par une tabulation : se colle en 2 cellules dans Excel
+  function copyEntry(e) {
+    const jiraUrl = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || "";
+    const combined = jiraUrl ? `${e.project.title}\t${jiraUrl}` : e.project.title;
+    copyToClipboard(combined).then(ok => {
+      if (ok) {
+        setSnackbar(jiraUrl ? "Titre + lien Jira copiés" : `"${e.project.title}" copié`);
+        setTimeout(() => setSnackbar(null), 2000);
+        setCopiedEntryId(e.id);
+        setTimeout(() => setCopiedEntryId(cur => (cur === e.id ? null : cur)), 1500);
+      }
+    });
+  } // weekStart pour lequel le sélecteur est ouvert
 
   function getWeekStart(dateStr) {
     const d = new Date(dateStr);
@@ -2922,7 +3001,8 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 
                     return (
                       <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 120px 10px 12px", cursor: "pointer" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+                        {/* Ligne 1 : les tags (badge Jira, plateformes) — toujours présente, même sans tag */}
+                        <div data-activity-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 19, marginBottom: 4 }}>
                           <JiraKey
                             value={e.project.jiraKey}
                             size="md"
@@ -2938,30 +3018,34 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                               });
                             }}
                           />
+                          {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="md" />)}
+                        </div>
+                        {/* Ligne 2 : le titre + le bouton copier */}
+                        <div data-activity-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                           <span
-                            onClick={ev => {
-                              ev.stopPropagation();
-                              const jiraUrl = e.project.jiraUrl || e.project.jiraLinks?.[0]?.url || "";
-                              const combined = jiraUrl ? `${e.project.title}\t${jiraUrl}` : e.project.title;
-                              copyToClipboard(combined).then(ok => {
-                                if (ok) {
-                                  setSnackbar(jiraUrl ? `Titre + lien Jira copiés` : `"${e.project.title}" copié`);
-                                  setTimeout(() => setSnackbar(null), 2000);
-                                }
-                              });
-                            }}
+                            onClick={ev => { ev.stopPropagation(); copyEntry(e); }}
                             title="Cliquer pour copier le titre et le lien Jira (colle en 2 colonnes dans Excel)"
                             style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}
                           >
                             {e.project.title}
                           </span>
-                          {platforms.slice(0, 2).map(pl => {
-                            const pc = PLATFORM_COLORS[pl] || T.futur;
-                            return <span key={pl} style={{ fontSize: 9, fontWeight: 800, color: pc, background: `${pc}12`, padding: "1px 5px", borderRadius: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>{pl}</span>;
-                          })}
-                          {e.waitingTag && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FEF3C7", padding: "1px 6px", borderRadius: 8 }}>Attente</span>}
+                          <button
+                            data-copy-entry={e.id}
+                            onClick={ev => { ev.stopPropagation(); copyEntry(e); }}
+                            title="Copier le titre et le lien Jira (se colle en 2 colonnes dans Excel)"
+                            aria-label="Copier le titre et le lien Jira"
+                            style={{ width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, background: copiedEntryId === e.id ? "#DCFCE7" : T.bgCard, border: `1px solid ${copiedEntryId === e.id ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: copiedEntryId === e.id ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}
+                            onMouseEnter={ev => { if (copiedEntryId !== e.id) { ev.currentTarget.style.background = T.bgHover; ev.currentTarget.style.color = T.textPrimary; } }}
+                            onMouseLeave={ev => { if (copiedEntryId !== e.id) { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textMuted; } }}>
+                            {copiedEntryId === e.id ? (
+                              <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            ) : (
+                              <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                            )}
+                          </button>
                         </div>
-                        <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                        {/* Ligne 3 : la dernière activité */}
+                        <div data-activity-text style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
                           <span style={{ fontSize: 10, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 6 }}>{cfg.label}</span>
                           {e.text}
                         </div>
@@ -3080,6 +3164,13 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const [waitingCollapsed, setWaitingCollapsed] = useState(false);
+  const [snackbar, setSnackbar] = useState(null);
+  const snackbarTimer = useRef(null);
+  function showCopied(message) {
+    setSnackbar(message);
+    clearTimeout(snackbarTimer.current);
+    snackbarTimer.current = setTimeout(() => setSnackbar(null), 2000);
+  }
   const [filterAssignee, setFilterAssignee] = useAssigneeFilter();
   const projects = useMemo(
     () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
@@ -3181,7 +3272,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {nextActions.map((p) => (
-                  <NextActionItem key={p.id} project={p} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
+                  <NextActionItem key={p.id} project={p} onNavigate={onNavigate} onUpdateProject={onUpdateProject} onCopied={showCopied} isLast={true} />
                 ))}
               </div>
             )}
@@ -3201,7 +3292,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {waiting.map(({ project: p, days }) => (
-                    <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
+                    <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} onCopied={showCopied} isLast={true} />
                   ))}
                 </div>
               )
@@ -3211,6 +3302,11 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
         </div>
 
       </div>
+      {snackbar && (
+        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 1000, background: "#1C1C1E", color: "#fff", fontSize: 13, fontWeight: 500, padding: "10px 20px", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.25)", pointerEvents: "none", whiteSpace: "nowrap" }}>
+          {snackbar}
+        </div>
+      )}
     </div>
   );
 }
