@@ -438,32 +438,46 @@ const SEED_PROJECTS = [
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const T = {
-  bg:           "#F5F6F8",
+  // Palette « lavande » : fond clair légèrement teinté, surfaces blanches, un seul violet d'action
+  bg:           "#F7F6FD",
   bgSidebar:    "#FFFFFF",
   bgCard:       "#FFFFFF",
-  bgHover:      "#F0F2F5",
-  bgInput:      "#F0F2F5",
-  bgSelected:   "#EEF0FF",
-  bgNav:        "#1A1D27",
-  border:       "#E3E6EC",
-  borderNav:    "#2A2E3D",
-  textPrimary:   "#0F1623",
-  textSecondary: "#4B5563",
-  textMuted:     "#9CA3AF",
-  textXMuted:    "#CBD5E1",
-  textNav:       "#9BA3B5",
+  bgHover:      "#F3F0FD",
+  bgInput:      "#FFFFFF",
+  bgSelected:   "#F3EEFF",
+  bgNav:        "#FFFFFF",
+  border:       "#EAE8F4",
+  borderNav:    "#EAE8F4",
+  textPrimary:   "#1F1D36",
+  textSecondary: "#55536F",
+  textMuted:     "#8A87A8",
+  textXMuted:    "#C4C1D9",
+  textNav:       "#8A87A8",
   textNavActive: "#FFFFFF",
-  accent:      "#6366F1",
-  accentBg:    "#EEF0FF",
-  accentText:  "#4338CA",
-  inProgress: "#6366F1",
-  waiting:    "#D97706",
-  futur:      "#6B7280",
-  done:       "#16A34A",
+  accent:      "#7550E3",
+  accentBg:    "#F0EBFF",
+  accentText:  "#5A3BC2",
+  inProgress: "#7550E3",
+  waiting:    "#E08E1F",
+  futur:      "#8A87A8",
+  done:       "#2DA66A",
+  // Typographie, ombres et arrondis
+  font:        "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  shadowCard:  "0 1px 2px rgba(66,40,160,0.04), 0 6px 20px rgba(66,40,160,0.06)",
+  shadowHover: "0 2px 4px rgba(66,40,160,0.06), 0 10px 28px rgba(66,40,160,0.10)",
+  shadowPop:   "0 14px 44px rgba(66,40,160,0.18)",
+  radiusCard:  18,
+  radiusInput: 14,
+};
+
+// Survol d'une carte : liseré violet léger + ombre un peu plus marquée (état « sélectionné » : liseré violet plein)
+const cardHover = {
+  onMouseEnter: e => { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; e.currentTarget.style.boxShadow = T.shadowHover; },
+  onMouseLeave: e => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = T.shadowCard; },
 };
 
 const ACTIVITY_TYPES = {
-  design:     { label: "Design",       color: "#6366F1" },
+  design:     { label: "Design",       color: "#7550E3" },
   relance:    { label: "Relance",      color: "#D97706" },
   feedback:   { label: "Retour",       color: "#0891B2" },
   validation: { label: "Validation",   color: "#16A34A" },
@@ -473,7 +487,7 @@ const ACTIVITY_TYPES = {
 };
 
 const STATUS_CONFIG = {
-  in_progress: { label: "En cours",   color: "#6366F1", bg: "#EEF0FF" },
+  in_progress: { label: "En cours",   color: "#7550E3", bg: "#F0EBFF" },
   waiting:     { label: "En attente", color: "#D97706", bg: "#FEF3C7" },
   blocked:     { label: "Bloqué",     color: "#DC2626", bg: "#FEF2F2" },
   futur:       { label: "Futur",      color: "#6B7280", bg: "#F3F4F6" },
@@ -499,7 +513,7 @@ const PLATFORM_COLORS = {
 const ALL_PLATFORMS = Object.keys(PLATFORM_COLORS);
 const ASSIGNEE_OPTIONS = ["Maxime", "Estelle", "Morgan"];
 const ASSIGNEE_INFO = {
-  Maxime:  { abbr: "Max", color: "#6366F1" },
+  Maxime:  { abbr: "Max", color: "#7550E3" },
   Estelle: { abbr: "E",   color: "#DB2777" },
   Morgan:  { abbr: "Mo",  color: "#16A34A" },
 };
@@ -717,7 +731,7 @@ const STAMP_TEXT = { fontFamily: "inherit", fontWeight: 700, letterSpacing: 0.4,
 const JIRA_SIZES = { sm: { fs: 10, px: 5, py: 1, gap: 3 }, md: { fs: 11, px: 6, py: 1, gap: 3 }, lg: { fs: 12, px: 6, py: 0, gap: 5, h: 22 } };
 function jiraBadgeStyle(size = "md") {
   const s = JIRA_SIZES[size] || JIRA_SIZES.md;
-  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.24)", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
+  return { display: "inline-flex", alignItems: "center", gap: s.gap, flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", color: JIRA_BLUE, background: "rgba(0,82,204,0.09)", border: "1px solid rgba(0,82,204,0.20)", borderRadius: 8, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
 }
 function JiraKey({ value, size = "md", onClick, title }) {
   if (!value) return null;
@@ -733,7 +747,7 @@ function JiraKey({ value, size = "md", onClick, title }) {
 // Boîte commune de tous les stamps (plateforme, priorité, attente) : mêmes dimensions que le badge Jira
 function stampBoxStyle(size = "md") {
   const s = JIRA_SIZES[size] || JIRA_SIZES.md;
-  return { display: "inline-flex", alignItems: "center", flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", border: "1px solid transparent", borderRadius: 5, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
+  return { display: "inline-flex", alignItems: "center", flexShrink: 0, ...STAMP_TEXT, fontSize: s.fs, whiteSpace: "nowrap", border: "1px solid transparent", borderRadius: 8, padding: `${s.py}px ${s.px}px`, ...(s.h ? { height: s.h, boxSizing: "border-box" } : {}) };
 }
 function platformStampStyle(name, size = "md") {
   const pc = PLATFORM_COLORS[name] || T.futur;
@@ -882,45 +896,45 @@ function AddActivityModal({ project, onClose, onAdd }) {
   const [showNote, setShowNote] = useState(false);
   const [waitingTag, setWaitingTag] = useState(false);
 
-  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" };
+  const inputStyle = { width: "100%", boxSizing: "border-box", minHeight: 46, padding: "11px 16px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", color: T.textPrimary, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: "inherit" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, width: 440, maxWidth: "90vw", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.14)" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, padding: 32, width: 440, maxWidth: "90vw", maxHeight: "88vh", overflowY: "auto", boxShadow: T.shadowPop }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>Ajouter une activité</div>
+          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: T.textPrimary }}>Ajouter une activité</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 4 }}><IC.X /></button>
         </div>
-        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 18 }}>{(project.platforms || []).join(", ")} · {project.title}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: T.textMuted, marginBottom: 24 }}>{(project.platforms || []).join(", ")} · {project.title}</div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Type</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Type</label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {Object.entries(ACTIVITY_TYPES).map(([key, cfg]) => (
-              <button key={key} onClick={() => setType(key)} style={{ padding: "4px 11px", borderRadius: 20, fontSize: 11, fontWeight: 600, border: `1.5px solid ${type === key ? cfg.color : T.border}`, background: type === key ? cfg.color : "transparent", color: type === key ? "#fff" : T.textSecondary, cursor: "pointer", transition: "all 0.12s" }}>{cfg.label}</button>
+              <button key={key} onClick={() => setType(key)} style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 600, border: `1.5px solid ${type === key ? cfg.color : T.border}`, background: type === key ? cfg.color : "transparent", color: type === key ? "#fff" : T.textSecondary, cursor: "pointer", transition: "all 0.12s" }}>{cfg.label}</button>
             ))}
           </div>
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Date</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Description courte</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Description courte</label>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Ex: Design v2 envoyé à Sylvie" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
         </div>
 
         {!showNote ? (
-          <button onClick={() => setShowNote(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginBottom: 16 }}>
+          <button onClick={() => setShowNote(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: T.textMuted, background: "none", border: `1px dashed ${T.border}`, borderRadius: 12, padding: "9px 10px", cursor: "pointer", marginBottom: 16 }}>
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1h9v7H6.5L5.5 10 4.5 8H1V1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
             Ajouter une note complémentaire
           </button>
         ) : (
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>
                 Note complémentaire <span style={{ color: T.textMuted, fontWeight: 400 }}>(masquée, dépliable)</span>
               </label>
               <button onClick={() => { setShowNote(false); setNoteContent(""); }} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2 }}><IC.X /></button>
@@ -931,15 +945,15 @@ function AddActivityModal({ project, onClose, onAdd }) {
 
         {/* Waiting tag */}
         <div style={{ marginBottom: 20 }}>
-          <button onClick={() => setWaitingTag(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1.5px solid ${waitingTag ? "#D97706" : T.border}`, background: waitingTag ? "#FEF3C7" : "transparent", color: waitingTag ? "#D97706" : T.textMuted, cursor: "pointer", transition: "all 0.15s" }}>
+          <button onClick={() => setWaitingTag(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 700, border: `1.5px solid ${waitingTag ? "#D97706" : T.border}`, background: waitingTag ? "#FEF3C7" : "transparent", color: waitingTag ? "#D97706" : T.textMuted, cursor: "pointer", transition: "all 0.15s" }}>
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.3"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
             En attente de retour
           </button>
         </div>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
-          <button onClick={() => { if (!text.trim()) return; onAdd({ type, text: text.trim(), date, ...(noteContent.trim() && { noteContent: noteContent.trim() }), ...(waitingTag && { waitingTag: true }) }); onClose(); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer" }}>Ajouter</button>
+          <button onClick={onClose} style={{ height: 46, padding: "0 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
+          <button onClick={() => { if (!text.trim()) return; onAdd({ type, text: text.trim(), date, ...(noteContent.trim() && { noteContent: noteContent.trim() }), ...(waitingTag && { waitingTag: true }) }); onClose(); }} style={{ height: 46, padding: "0 24px", borderRadius: 14, fontSize: 14, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer", boxShadow: "0 8px 18px rgba(117,80,227,0.28)" }}>Ajouter</button>
         </div>
       </div>
     </div>
@@ -952,13 +966,13 @@ function AddSubjectModal({ onClose, onAdd }) {
   const defaultAssignee = ASSIGNEE_OPTIONS.includes(user?.firstName) ? user.firstName : null;
   const [form, setForm] = useState({ title: "", platforms: [], status: "in_progress", jiraUrl: "", figmaUrl: "", stakeholders: "", description: "", nextAction: "", assignees: defaultAssignee ? [defaultAssignee] : [] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" };
-  const label = (t) => <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 6 }}>{t}</label>;
+  const inputStyle = { width: "100%", boxSizing: "border-box", minHeight: 46, padding: "11px 16px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", color: T.textPrimary, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: "inherit" };
+  const label = (t) => <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>{t}</label>;
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, width: 460, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.14)" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, padding: 32, width: 460, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: T.shadowPop }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>Nouveau ticket</div>
+          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: T.textPrimary }}>Nouveau ticket</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 4 }}><IC.X /></button>
         </div>
         <div style={{ display: "grid", gap: 14 }}>
@@ -994,13 +1008,13 @@ function AddSubjectModal({ onClose, onAdd }) {
           <div>{label("Prochaine action")}<textarea value={form.nextAction} onChange={e => set("nextAction", e.target.value)} placeholder="Ex: Envoyer proposition design à Sylvie" rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 22 }}>
-          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
+          <button onClick={onClose} style={{ height: 46, padding: "0 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
           <button onClick={() => {
             if (!form.title.trim()) return;
             const jiraKey = form.jiraUrl ? form.jiraUrl.split("/").pop() : null;
             onAdd({ id: `p${Date.now()}`, ...form, jiraKey, jiraUrl: form.jiraUrl || null, figmaUrl: form.figmaUrl.trim() || null, stakeholders: form.stakeholders.split(",").map(s => s.trim()).filter(Boolean), tags: [], lastActivity: today(), timeline: [], createdAt: today() });
             onClose();
-          }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer" }}>Créer</button>
+          }} style={{ height: 46, padding: "0 24px", borderRadius: 14, fontSize: 14, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer", boxShadow: "0 8px 18px rgba(117,80,227,0.28)" }}>Créer</button>
         </div>
       </div>
     </div>
@@ -1040,11 +1054,11 @@ function TimelineEntry({ entry, isLast, onDelete, onEdit }) {
             <input type="date" value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} style={{ padding: "2px 8px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 6, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
           </div>
           <div>
-            <label style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, display: "block", marginBottom: 4 }}>Description courte</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Description courte</label>
             <textarea value={draft.text} onChange={e => setDraft(d => ({ ...d, text: e.target.value }))} rows={2} autoFocus onKeyDown={e => { if (e.key === "Escape") setEditing(false); }} style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 6, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit", resize: "vertical" }} />
           </div>
           <div>
-            <label style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, display: "block", marginBottom: 4 }}>Note complémentaire <span style={{ color: T.textXMuted, fontWeight: 400 }}>(masquée, dépliable)</span></label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Note complémentaire <span style={{ color: T.textXMuted, fontWeight: 400 }}>(masquée, dépliable)</span></label>
             <textarea value={draft.noteContent} onChange={e => setDraft(d => ({ ...d, noteContent: e.target.value }))} rows={4} placeholder="Email reçu, commentaires Figma, compte-rendu, contexte détaillé…" style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 6, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }} />
           </div>
           <div style={{ display: "flex", gap: 6, justifyContent: "space-between", alignItems: "center" }}>
@@ -1072,7 +1086,7 @@ function TimelineEntry({ entry, isLast, onDelete, onEdit }) {
       <div style={{ paddingBottom: isLast ? 0 : 20, flex: 1 }}>
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.3, color: cfg.color, textTransform: "uppercase" }}>{cfg.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
           <span style={{ fontSize: 11, color: T.textMuted }}>{formatDate(entry.date)}</span>
           {/* Note indicator badge */}
           {hasNote && (
@@ -1316,28 +1330,28 @@ function PersonFilterDropdown({ value, onChange }) {
 
   return (
     <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: "6px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
+      <button onClick={() => setOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box", height: 46, padding: "0 14px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
         {value === "all" ? (
           <span style={{ width: 20, height: 20, borderRadius: "50%", background: T.textXMuted, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IC.User /></span>
         ) : (
           <span style={{ width: 20, height: 20, borderRadius: "50%", background: info?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{info?.abbr || value[0]}</span>
         )}
-        <span style={{ fontSize: 12, color: T.textPrimary, flex: 1 }}>{value === "all" ? "Tout le monde" : value}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, flex: 1 }}>{value === "all" ? "Tout le monde" : value}</span>
         <span style={{ display: "flex", color: T.textMuted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}><IC.Chevron /></span>
       </button>
 
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 41, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.14)", overflow: "hidden" }}>
-            <button onClick={() => { onChange("all"); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", background: value === "all" ? T.bgSelected : "transparent", border: "none", cursor: "pointer", fontSize: 12, color: T.textPrimary, textAlign: "left" }}>
+          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 41, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: T.shadowPop, overflow: "hidden", padding: 6 }}>
+            <button onClick={() => { onChange("all"); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: value === "all" ? T.bgSelected : "transparent", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: T.textPrimary, textAlign: "left", fontFamily: "inherit" }}>
               <span style={{ width: 20, height: 20, borderRadius: "50%", background: T.textXMuted, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IC.User /></span>
               Tout le monde
             </button>
             {ASSIGNEE_OPTIONS.map(name => {
               const i = ASSIGNEE_INFO[name];
               return (
-                <button key={name} onClick={() => { onChange(name); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", background: value === name ? T.bgSelected : "transparent", border: "none", cursor: "pointer", fontSize: 12, color: T.textPrimary, textAlign: "left" }}>
+                <button key={name} onClick={() => { onChange(name); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: value === name ? T.bgSelected : "transparent", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: T.textPrimary, textAlign: "left", fontFamily: "inherit" }}>
                   <span style={{ width: 20, height: 20, borderRadius: "50%", background: i?.color || T.accent, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i?.abbr || name[0]}</span>
                   {name}
                 </button>
@@ -1425,15 +1439,15 @@ function EditableAssignees({ assignees, onChange }) {
 // ─── CONFIRM MODAL ────────────────────────────────────────────────────────────
 function ConfirmModal({ title, message, confirmLabel = "Supprimer", onConfirm, onCancel }) {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onCancel}>
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, width: 360, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.16)" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onCancel}>
+      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, padding: 32, width: 360, maxWidth: "90vw", boxShadow: T.shadowPop }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>{title}</div>
         <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.55, marginBottom: 24 }}>{message}</div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>
+          <button onClick={onCancel} style={{ height: 46, padding: "0 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>
             Annuler
           </button>
-          <button onClick={onConfirm} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: "#DC2626", border: "none", color: "#fff", cursor: "pointer" }}>
+          <button onClick={onConfirm} style={{ height: 46, padding: "0 24px", borderRadius: 14, fontSize: 14, fontWeight: 700, background: "#DC2626", border: "none", color: "#fff", cursor: "pointer", boxShadow: "0 8px 18px rgba(220,38,38,0.25)" }}>
             {confirmLabel}
           </button>
         </div>
@@ -1723,10 +1737,10 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
-      <div style={{ padding: "24px 28px 18px", borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.bgCard }}>
+      <div style={{ padding: "30px 34px 24px", borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.bgCard }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
               <PlatformSelector platforms={platforms} onChange={v => patch({ platforms: v })} />
               <StatusBadge value={project.status} onChange={v => patch({ status: v })} />
               <PriorityBadge value={project.priority} onChange={v => patch({ priority: v })} />
@@ -1735,7 +1749,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               value={project.title}
               onChange={v => patch({ title: v })}
               placeholder="Titre du ticket"
-              style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary, lineHeight: 1.25, letterSpacing: -0.3, display: "block", width: "100%" }}
+              style={{ fontSize: 26, fontWeight: 800, color: T.textPrimary, lineHeight: 1.2, letterSpacing: -0.7, display: "block", width: "100%" }}
             />
             <div style={{ marginTop: 6 }}>
               <EditableText
@@ -1743,7 +1757,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
                 onChange={v => patch({ description: v })}
                 placeholder="Ajouter une description…"
                 multiline
-                style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.55, display: "block", width: "100%" }}
+                style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.6, display: "block", width: "100%" }}
               />
             </div>
           </div>
@@ -1752,7 +1766,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
           {/* Jira — multi-liens */}
           <EditableJira
             jiraLinks={jiraLinks}
@@ -1790,11 +1804,11 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
         )}
 
         {/* Next action */}
-        <div style={{ marginTop: 14, padding: "10px 14px", background: T.accentBg, border: `1px solid ${T.accent}25`, borderRadius: 9 }}>
+        <div style={{ marginTop: 22, padding: "16px 20px", background: T.accentBg, border: `1px solid ${T.accent}22`, borderRadius: 18 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.accent, letterSpacing: 0.5, textTransform: "uppercase" }}>Prochaine action</div>
-              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 26, height: 26, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: aiLoading ? T.textMuted : `${T.accent}18`, border: "none", borderRadius: 6, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "all 0.15s" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.accent }}>Prochaine action</div>
+              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: aiLoading ? T.textMuted : `${T.accent}18`, border: "none", borderRadius: 12, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "all 0.15s" }}>
                 {aiLoading ? (
                   <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
                 ) : (
@@ -1809,7 +1823,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               multiline
               enterToSave
               minRows={2}
-              style={{ fontSize: 13, color: T.accentText, fontWeight: 500, display: "block", width: "100%" }}
+              style={{ fontSize: 14, color: T.accentText, fontWeight: 600, display: "block", width: "100%" }}
             />
             {aiError && (
               <div style={{ marginTop: 6, fontSize: 11, color: "#DC2626", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 6, padding: "5px 8px" }}>
@@ -1820,9 +1834,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
         </div>
 
         {/* Rédiger un message — bloc séparé */}
-        <div style={{ marginTop: 10, padding: "10px 14px", background: "#F5F3FF", border: "1px solid #7C3AED25", borderRadius: 9 }}>
+        <div style={{ marginTop: 12, padding: "16px 20px", background: "#F8F5FF", border: "1px solid #7C3AED1F", borderRadius: 18 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#7C3AED", letterSpacing: 0.5, textTransform: "uppercase" }}>Message à envoyer</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>Message à envoyer</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {genMessage && (
                 <button onClick={validateGenMessage} disabled={genValidating} title="Marquer comme fait et ajouter à l'historique" aria-label="Valider" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "4px 10px", height: 26, background: genValidated ? "#DCFCE7" : T.bgHover, border: `1px solid ${genValidated ? "#16A34A40" : T.border}`, borderRadius: 6, cursor: genValidating ? "wait" : "pointer", color: genValidated ? "#16A34A" : T.textSecondary, transition: "all 0.2s", opacity: genValidating ? 0.6 : 1 }}>
@@ -1830,7 +1844,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
                   {genValidating ? "Validation…" : genValidated ? "Ajouté" : "Valider"}
                 </button>
               )}
-              <button onClick={generateGenMessage} disabled={genLoading} title={genMessage ? "Régénérer le message" : "Rédiger un message"} aria-label={genMessage ? "Régénérer le message" : "Rédiger un message"} style={{ width: 26, height: 26, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#7C3AED", background: genLoading ? T.textMuted : "#7C3AED18", border: "none", borderRadius: 6, cursor: genLoading ? "wait" : "pointer", transition: "all 0.15s" }}>
+              <button onClick={generateGenMessage} disabled={genLoading} title={genMessage ? "Régénérer le message" : "Rédiger un message"} aria-label={genMessage ? "Régénérer le message" : "Rédiger un message"} style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#7C3AED", background: genLoading ? T.textMuted : "#7C3AED18", border: "none", borderRadius: 12, cursor: genLoading ? "wait" : "pointer", transition: "all 0.15s" }}>
                 {genLoading ? (
                   <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
                 ) : (
@@ -1841,7 +1855,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           </div>
 
           {!genMessage && !genLoading && (
-            <div style={{ marginTop: 4, fontSize: 12, color: "#7C3AED99" }}>Aucun message pour le moment</div>
+            <div style={{ marginTop: 4, fontSize: 13, fontWeight: 500, color: "#7C3AE0A0" }}>Aucun message pour le moment</div>
           )}
 
           {genError && !genLoading && (
@@ -1872,7 +1886,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 
       {/* Sync preview panel */}
       {syncState === "preview" && syncPreview.length > 0 && (
-        <div style={{ margin: "12px 28px 0", background: "#EEF0FF", border: "1px solid #6366F140", borderRadius: 10, flexShrink: 0, display: "flex", flexDirection: "column", maxHeight: 300, overflow: "hidden" }}>
+        <div style={{ margin: "12px 28px 0", background: "#F0EBFF", border: "1px solid #7550E340", borderRadius: 10, flexShrink: 0, display: "flex", flexDirection: "column", maxHeight: 300, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px 8px", flexShrink: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: T.accent, display: "flex", alignItems: "center", gap: 5 }}><IC.Sparkle /> {syncPreview.length} activité{syncPreview.length > 1 ? "s" : ""} détectée{syncPreview.length > 1 ? "s" : ""}</div>
             <button onClick={cancelSync} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2 }}><IC.X /></button>
@@ -1913,12 +1927,13 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       )}
 
       {/* Timeline */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px", background: T.bg, scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            Historique · {sorted.length} entrée{sorted.length > 1 ? "s" : ""}
+      <div style={{ flex: 1, overflowY: "auto", padding: "26px 34px 30px", background: "#FBFAFF", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.4 }}>Historique</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: T.accentText, background: T.accentBg, borderRadius: 999, padding: "2px 10px" }}>{sorted.length}</span>
           </div>
-          <button onClick={() => setShowAddActivity(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <button onClick={() => setShowAddActivity(true)} style={{ display: "flex", alignItems: "center", gap: 7, height: 40, padding: "0 16px", background: T.accent, border: "none", borderRadius: 13, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 8px 18px rgba(117,80,227,0.28)" }}>
             <IC.Plus />Ajouter
           </button>
         </div>
@@ -1947,20 +1962,20 @@ function SubjectCard({ project, isSelected, onClick }) {
   const platforms = Array.isArray(project.platforms) ? project.platforms : [];
   const last = sortEntries(project.timeline)[0];
   return (
-    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "10px 12px", background: isSelected ? T.bgSelected : "transparent", border: `1px solid ${isSelected ? T.accent + "40" : "transparent"}`, borderRadius: 8, cursor: "pointer", transition: "all 0.1s", outline: "none", marginBottom: 1 }}
-      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = T.bgHover; }}
-      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
+    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "16px 20px", background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: T.radiusCard, boxShadow: isSelected ? "0 0 0 4px rgba(117,80,227,0.10), " + T.shadowCard : T.shadowCard, cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s", outline: "none", marginBottom: 12, fontFamily: "inherit" }}
+      onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; e.currentTarget.style.boxShadow = T.shadowHover; } }}
+      onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = T.shadowCard; } }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans aucun tag */}
-          <div data-card-tags style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", minHeight: 18, marginBottom: 4 }}>
+          <div data-card-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 18, marginBottom: 8 }}>
             <JiraKey value={project.jiraKey} size="sm" />
             {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
           {/* Ligne 2 : le titre, seul sur sa ligne */}
-          <div data-card-title style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{project.title}</div>
-          {last && <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last.text}</div>}
+          <div data-card-title style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{project.title}</div>
+          {last && <div style={{ fontSize: 12.5, fontWeight: 500, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last.text}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
             {project.stakeholders?.length > 0 && <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>}
           </div>
@@ -2059,10 +2074,10 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     if (!items.length) return null;
     return (
       <div key={statusKey} style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: T.textMuted, padding: "8px 12px 4px", display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, padding: "14px 4px 12px", display: "flex", alignItems: "center", gap: 9 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
           {cfg.label}
-          <span style={{ marginLeft: "auto", color: T.textXMuted }}>{items.length}</span>
+          <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: T.textMuted }}>{items.length}</span>
         </div>
         {items.map(p => <SubjectCard key={p.id} project={p} isSelected={p.id === selectedId} onClick={() => {
           setSelectedId(p.id);
@@ -2075,34 +2090,34 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0 }}>
       {/* ── List sidebar ── */}
-      <div style={{ width: 420, flexShrink: 0, background: T.bgSidebar, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "16px 14px 10px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+      <div style={{ width: 452, flexShrink: 0, background: T.bg, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "34px 24px 14px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Sujets</div>
-              <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{projects.length} sujets · {counts.in_progress} en cours</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Sujets</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.textMuted, marginTop: 4 }}>{projects.length} sujets · {counts.in_progress} en cours</div>
             </div>
-            <button onClick={() => setShowAddProject(true)} style={{ width: 28, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: T.accent, border: "none", cursor: "pointer", color: "#fff", boxShadow: "0 2px 8px rgba(99,102,241,0.3)" }}>
+            <button onClick={() => setShowAddProject(true)} title="Nouveau sujet" style={{ width: 46, height: 46, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: T.accent, border: "none", cursor: "pointer", color: "#fff", boxShadow: "0 10px 22px rgba(117,80,227,0.32)" }}>
               <IC.Plus />
             </button>
           </div>
           <div style={{ marginBottom: 10 }}>
             <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
             {[{ key: "all", label: "Tous", count: assigneeFilteredProjects.length }, { key: "in_progress", label: "En cours", count: counts.in_progress, color: T.inProgress }, { key: "waiting", label: "En attente", count: counts.waiting, color: T.waiting }, { key: "blocked", label: "Bloqué", count: counts.blocked, color: "#DC2626" }, { key: "futur", label: "Futur", count: counts.futur, color: T.futur }, { key: "done", label: "Terminé", count: counts.done, color: T.done }].map(f => {
               const active = filterStatus === f.key;
               const col = f.color || T.textSecondary;
-              return <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600, border: `1.5px solid ${active ? col : T.border}`, background: active ? col : "transparent", color: active ? "#fff" : T.textSecondary, cursor: "pointer", transition: "all 0.12s" }}>{f.label} <span style={{ opacity: 0.75 }}>{f.count}</span></button>;
+              return <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 36, padding: "0 15px", borderRadius: 999, fontSize: 13, fontWeight: 600, fontFamily: "inherit", border: `1px solid ${active ? T.accent : T.border}`, background: active ? T.accent : "#FFFFFF", color: active ? "#fff" : T.textSecondary, boxShadow: active ? "0 8px 18px rgba(117,80,227,0.28)" : "0 1px 2px rgba(66,40,160,0.04)", cursor: "pointer", transition: "all 0.12s" }}>{f.label}<span style={{ fontWeight: 700, opacity: active ? 0.85 : 0.55 }}>{f.count}</span></button>;
             })}
           </div>
-          <div style={{ position: "relative", marginBottom: 8 }}>
-            <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: T.textMuted }}><IC.Search /></span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ width: "100%", boxSizing: "border-box", padding: "7px 28px 7px 30px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
-            {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2 }}><IC.X /></button>}
+          <div style={{ position: "relative", marginBottom: 4 }}>
+            <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: T.accent, display: "flex" }}><IC.Search /></span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un sujet, un ticket…" style={{ width: "100%", boxSizing: "border-box", height: 46, padding: "0 42px 0 44px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", color: T.textPrimary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: "inherit" }} />
+            {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>}
           </div>
           </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 16px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 24px 28px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
           {filtered.length === 0
             ? <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "48px 0" }}>Aucun résultat</div>
             : Object.keys(STATUS_CONFIG).map(k => renderSection(k))
@@ -2111,7 +2126,8 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
       </div>
 
       {/* ── Detail ── */}
-      <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: "hidden", minWidth: 0, padding: "20px 20px 20px 0", boxSizing: "border-box" }}>
+       <div style={{ height: "100%", background: T.bgCard, borderRadius: 26, boxShadow: T.shadowCard, overflow: "hidden" }}>
         {selected
           ? <SubjectDetail key={selected.id} project={selected} onUpdate={onUpdate} onDelete={(id) => { onDelete(id); }}
               onDeleteActivity={onDeleteActivity}
@@ -2119,6 +2135,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
               onSyncConsumed={onSyncConsumed} />
           : <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}><div style={{ fontSize: 40 }}>📋</div><div style={{ fontSize: 14, fontWeight: 700, color: T.textSecondary }}>Sélectionne un ticket</div><div style={{ fontSize: 12, color: T.textMuted }}>ou crée-en un nouveau</div></div>
         }
+       </div>
       </div>
 
       {showAddProject && <AddSubjectModal onClose={() => setShowAddProject(false)} onAdd={(p) => { onAdd(p); setSelectedId(p.id); }} />}
@@ -2149,26 +2166,28 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
 
   return (
     <div onClick={onOpen} style={{
-      background: T.bgCard, border: `1px solid ${isSelected ? T.accent : T.border}`, borderRadius: 10,
-      padding: "12px 14px", marginBottom: 8, cursor: "pointer",
-      boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 3px rgba(0,0,0,0.05)",
-      opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s",
+      background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: 16,
+      padding: "16px 16px 14px", marginBottom: 12, cursor: "pointer",
+      boxShadow: isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : (isSelected ? "0 0 0 4px rgba(117,80,227,0.10), " + T.shadowCard : T.shadowCard),
+      opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s, border-color 0.15s",
       userSelect: "none",
-    }}>
+    }}
+    onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; e.currentTarget.style.boxShadow = T.shadowHover; } }}
+    onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : T.shadowCard; } }}>
       {/* Numéro Jira + plateformes */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center", marginBottom: 7 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
         <JiraKey value={project.jiraKey} size="sm" />
         {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
       </div>
 
       {/* Title */}
-      <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, lineHeight: 1.35, marginBottom: 6 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, color: T.textPrimary, lineHeight: 1.35, marginBottom: 6 }}>
         {project.title}
       </div>
 
       {/* Last activity */}
       {lastEntry && (
-        <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 8 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 10 }}>
           {lastEntry.text}
         </div>
       )}
@@ -2176,7 +2195,7 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         {project.stakeholders?.length > 0 && (
-          <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
         )}
         {waitingDays !== null && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: waitingColor(waitingDays), marginLeft: "auto" }}>
@@ -2188,9 +2207,9 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
 
       {/* Next action */}
       {project.nextAction && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "flex-start", gap: 5 }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "flex-start", gap: 6 }}>
           <IC.Arrow />
-          <span style={{ fontSize: 11, color: T.accentText, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.accentText, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
         </div>
       )}
     </div>
@@ -2209,16 +2228,16 @@ function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOv
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}
+      style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "rgba(117,80,227,0.05)", borderRadius: 22, padding: "16px 12px 4px", boxSizing: "border-box" }}
       onDragOver={e => { e.preventDefault(); setDragOver(column.key); onHoverSlot(column.key, null); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
       onDrop={e => { e.preventDefault(); setDragOver(null); onDrop(); }}
     >
       {/* Column header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 2px 10px", flexShrink: 0 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{column.label}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, background: T.bgHover, borderRadius: 10, padding: "1px 7px" }}>{count}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 8px 14px", flexShrink: 0 }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+        <span style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{column.label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, background: "#FFFFFF", borderRadius: 999, padding: "2px 9px", boxShadow: "0 1px 2px rgba(66,40,160,0.06)" }}>{count}</span>
       </div>
 
       {/* Cards zone */}
@@ -2328,22 +2347,24 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
-      {/* Header */}
-      <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Kanban</div>
-        <div style={{ fontSize: 11, color: T.textMuted }}>{projects.length} sujets</div>
-        <div style={{ marginLeft: "auto", width: 190 }}>
+      {/* En-tête */}
+      <div style={{ padding: "34px 40px 20px", flexShrink: 0, display: "flex", alignItems: "flex-end", gap: 14 }}>
+        <div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Kanban</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: T.textMuted, marginTop: 4 }}>{projects.length} sujets</div>
+        </div>
+        <div style={{ marginLeft: "auto", width: 230 }}>
           <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
         </div>
-        <div style={{ position: "relative" }}>
-          <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: T.textMuted }}><IC.Search /></span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ padding: "6px 10px 6px 28px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, color: T.textPrimary, outline: "none", fontFamily: "inherit", width: 200 }} />
+        <div style={{ position: "relative", width: 270 }}>
+          <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: T.accent, display: "flex" }}><IC.Search /></span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un sujet, un ticket…" style={{ width: "100%", boxSizing: "border-box", height: 46, padding: "0 16px 0 44px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", fontSize: 13, fontWeight: 500, color: T.textPrimary, outline: "none", fontFamily: "inherit" }} />
         </div>
       </div>
 
       {/* Board */}
-      <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 12, height: "calc(100% - 0px)", minHeight: 0 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "4px 40px 28px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 18, height: "calc(100% - 0px)", minHeight: 0 }}>
           {KANBAN_COLUMNS.map(col => (
             <KanbanColumn
               key={col.key}
@@ -2367,7 +2388,7 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
       {selected && (
         <>
           <style>{`@keyframes kanbanPanelIn { from { transform: translateX(48px); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes kanbanScrimIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
-          <div onClick={() => setSelectedId(null)} style={{ position: "absolute", inset: 0, background: "rgba(15,22,35,0.32)", zIndex: 20, animation: "kanbanScrimIn 0.18s ease-out" }} />
+          <div onClick={() => setSelectedId(null)} style={{ position: "absolute", inset: 0, background: "rgba(31,29,54,0.40)", zIndex: 20, animation: "kanbanScrimIn 0.18s ease-out" }} />
           <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "min(780px, 92%)", background: T.bg, zIndex: 21, display: "flex", flexDirection: "column", borderLeft: `1px solid ${T.border}`, boxShadow: "-14px 0 44px rgba(0,0,0,0.18)", animation: "kanbanPanelIn 0.22s ease-out" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", background: T.bgCard, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
               <span style={{ fontSize: 11, color: T.textMuted }}>Détail du sujet</span>
@@ -2521,23 +2542,23 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
   }
 
   return (
-    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 16px" }}>
+    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: "20px 24px", boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
-          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minHeight: 19, marginBottom: 4 }}>
+          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 19, marginBottom: 10 }}>
             <JiraKey value={project.jiraKey} size="md" />
             {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="md" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="md" />}
           </div>
           {/* Ligne 2 : le titre */}
-          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
+          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
           </div>
           {/* Ligne 3 : la prochaine action */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 5, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               {message && (
@@ -2546,7 +2567,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
                   {validating ? "Validation…" : validated ? "Ajouté" : "Valider"}
                 </button>
               )}
-              <button onClick={generateMessage} disabled={loading} title={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} aria-label={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 6, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(99,102,241,0.3)" }}>
+              <button onClick={generateMessage} disabled={loading} title={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} aria-label={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
                 {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
               </button>
             </div>
@@ -2711,19 +2732,19 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
   }
 
   return (
-    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px 16px" }}>
+    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: "20px 24px", boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
-          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minHeight: 18, marginBottom: 3 }}>
+          <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 18, marginBottom: 8 }}>
             <JiraKey value={project.jiraKey} size="sm" />
             {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="sm" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
           {/* Ligne 2 : le titre */}
-          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
+          <div data-dash-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{project.title}</span>
           </div>
           {/* Ligne 3 : les interlocuteurs */}
           {project.stakeholders?.length > 0 && (
@@ -2733,7 +2754,7 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
         <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: wc.color, background: wc.bg, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" }}>
           {days === 0 ? "Auj." : days === 1 ? "Hier" : days < 7 ? `${days}j` : days < 30 ? `${Math.floor(days / 7)} sem.` : `${Math.floor(days / 30)} mois`}
         </span>
-        <button onClick={generateRelance} disabled={loading} title={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} aria-label={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} style={{ flexShrink: 0, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 6, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(99,102,241,0.3)" }}>
+        <button onClick={generateRelance} disabled={loading} title={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} aria-label={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
           {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
         </button>
       </div>
@@ -2783,8 +2804,8 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
 function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose }) {
   const sortedProjects = [...projects].sort((a, b) => a.title.localeCompare(b.title));
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, width: 840, maxWidth: "90vw", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.14)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, overflow: "hidden", width: 840, maxWidth: "90vw", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: T.shadowPop, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Choisir un sujet</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>
@@ -2923,34 +2944,34 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-      <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.border}`, background: T.bgCard, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>Activité</div>
+      <div style={{ padding: "34px 40px 10px", flexShrink: 0 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Activité</div>
       </div>
 
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 40px 44px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
         {grouped.length === 0 ? (
           <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "60px 0" }}>Aucune activité trouvée</div>
         ) : (
-          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ maxWidth: 900 }}>
             {grouped.map((group, gi) => {
               const isExpanded = expandedWeeks?.has(group.weekStart);
               const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.project.weeklyTime?.[group.weekStart] || 0), 0));
               const pickerOpen = addPickerWeek === group.weekStart;
               return (
-              <div key={group.weekStart} style={{ marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}` }}>
+              <div key={group.weekStart} style={{ marginBottom: 34 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                   <button onClick={() => toggleWeek(group.weekStart)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                     <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: isExpanded ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IC.Chevron /></span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.3 }}>
                       {formatWeekLabel(group.weekStart)}
                     </span>
-                    <span style={{ fontSize: 10, color: T.textXMuted, fontWeight: 500 }}>· {group.entries.length}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.accentText, background: T.accentBg, borderRadius: 999, padding: "2px 10px" }}>{group.entries.length}</span>
                   </button>
-                  <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, flexShrink: 0 }}>{totalDays} j</span>
+                  <span style={{ fontSize: 13, color: T.textSecondary, fontWeight: 700, flexShrink: 0 }}>{totalDays} j</span>
                 </div>
                 {isExpanded && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {group.entries.map(e => {
                     const cfg = ACTIVITY_TYPES[e.type] || ACTIVITY_TYPES.note;
                     const platforms = e.project.platforms || [];
@@ -2966,9 +2987,9 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                     }
 
                     return (
-                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} style={{ position: "relative", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 120px 10px 12px", cursor: "pointer" }}>
+                      <div key={e.id} onClick={() => onNavigate("projects", e.project.id)} {...cardHover} style={{ position: "relative", background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, boxShadow: T.shadowCard, padding: "20px 170px 20px 24px", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s" }}>
                         {/* Ligne 1 : les tags (badge Jira, plateformes) — toujours présente, même sans tag */}
-                        <div data-activity-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 19, marginBottom: 4 }}>
+                        <div data-activity-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 19, marginBottom: 10 }}>
                           <JiraKey
                             value={e.project.jiraKey}
                             size="md"
@@ -2987,11 +3008,11 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           {platforms.slice(0, 2).map(pl => <PlatformStamp key={pl} name={pl} size="md" />)}
                         </div>
                         {/* Ligne 2 : le titre + le bouton copier */}
-                        <div data-activity-title-row style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                        <div data-activity-title-row style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span
                             onClick={ev => { ev.stopPropagation(); copyEntry(e); }}
                             title="Cliquer pour copier le titre et le lien Jira (colle en 2 colonnes dans Excel)"
-                            style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, cursor: "pointer" }}
+                            style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: T.textPrimary, cursor: "pointer" }}
                           >
                             {e.project.title}
                           </span>
@@ -3011,11 +3032,11 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           </button>
                         </div>
                         {/* Ligne 3 : la dernière activité */}
-                        <div data-activity-text style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: cfg.color, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 6 }}>{cfg.label}</span>
+                        <div data-activity-text style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, marginRight: 8 }}>{cfg.label}</span>
                           {e.text}
                         </div>
-                        <div style={{ position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }} onClick={ev => ev.stopPropagation()}>
+                        <div style={{ position: "absolute", top: "50%", right: 20, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 8 }} onClick={ev => ev.stopPropagation()}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, background: T.bgHover, borderRadius: 999, padding: "3px 4px" }}>
                             <button onClick={() => adjustTime(-0.25)} aria-label="Retirer un quart de jour" style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "transparent", color: T.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "background 0.12s, color 0.12s" }}
                               onMouseEnter={ev => { ev.currentTarget.style.background = T.bgCard; ev.currentTarget.style.color = T.textPrimary; }}
@@ -3169,7 +3190,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   }
 
   const Card = ({ children, style = {} }) => (
-    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "18px 20px", ...style }}>
+    <div style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: "18px 20px", boxShadow: T.shadowCard, ...style }}>
       {children}
     </div>
   );
@@ -3185,34 +3206,36 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
 
   return (
     <div style={{ flex: 1, minWidth: 0, overflowY: "auto", overflowX: "hidden", background: T.bg, scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
-      <div style={{ padding: "28px 32px 48px" }}>
+      <div style={{ padding: "34px 40px 56px" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.5, textTransform: "capitalize" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>
               Bonjour 👋
             </div>
-            <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: T.textMuted, marginTop: 6 }}>
               {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dateLabel}
             </div>
           </div>
-          <div style={{ width: 200, flexShrink: 0 }}>
+          <div style={{ width: 230, flexShrink: 0 }}>
             <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
           </div>
         </div>
 
         {/* ── Row 1 : Stat cards ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 34 }}>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-            <Card key={key} style={{ padding: "14px 16px", cursor: "pointer" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
-                <span style={{ fontSize: 24, fontWeight: 800, color: T.textPrimary }}>{counts[key] || 0}</span>
+            <Card key={key} style={{ padding: "20px 22px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <span style={{ width: 40, height: 40, borderRadius: 13, background: `${cfg.color}1A`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
+                </span>
+                <span style={{ fontSize: 30, fontWeight: 800, color: T.textPrimary, letterSpacing: -1 }}>{counts[key] || 0}</span>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary }}>{cfg.label}</div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
-                {total > 0 ? Math.round(((counts[key] || 0) / total) * 100) : 0}% du total
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>{cfg.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: T.textMuted, marginTop: 3 }}>
+                {total > 0 ? Math.round(((counts[key] || 0) / total) * 100) : 0} % du total
               </div>
             </Card>
           ))}
@@ -3223,13 +3246,14 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
 
           {/* Prochaines actions */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 12 }}>
-              Prochaines actions · {nextActions.length}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.4 }}>Prochaines actions</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.accentText, background: T.accentBg, borderRadius: 999, padding: "2px 10px" }}>{nextActions.length}</span>
             </div>
             {nextActions.length === 0 ? (
               <div style={{ fontSize: 13, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Aucune action en attente 🎉</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {nextActions.map((p) => (
                   <NextActionItem key={p.id} project={p} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
                 ))}
@@ -3239,17 +3263,16 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
 
           {/* En attente */}
           <div>
-            <button onClick={() => setWaitingCollapsed(v => !v)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: "none", padding: 0, marginBottom: 12, cursor: "pointer" }}>
+            <button onClick={() => setWaitingCollapsed(v => !v)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", background: "none", border: "none", padding: 0, marginBottom: 16, cursor: "pointer", fontFamily: "inherit" }}>
               <span style={{ display: "flex", alignItems: "center", color: T.textMuted, transform: waitingCollapsed ? "rotate(-90deg)" : "none", transition: "transform 0.15s" }}><IC.Chevron /></span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                En attente de retour · {waiting.length}
-              </span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.4 }}>En attente de retour</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.accentText, background: T.accentBg, borderRadius: 999, padding: "2px 10px", marginLeft: 4 }}>{waiting.length}</span>
             </button>
             {!waitingCollapsed && (
               waiting.length === 0 ? (
                 <div style={{ fontSize: 13, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Aucune attente en cours 🎉</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {waiting.map(({ project: p, days }) => (
                     <RelanceItem key={p.id} project={p} days={days} waitingBadgeColor={waitingBadgeColor} onNavigate={onNavigate} onUpdateProject={onUpdateProject} isLast={true} />
                   ))}
@@ -3273,14 +3296,14 @@ function LogoMark({ size = 36 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block" }}>
       <circle cx="32" cy="32" r="31" fill="#1C1C1E" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
-      <g transform="rotate(12 32 32)"><path d={TICKET_PATH} fill="#6366F1" /></g>
+      <g transform="rotate(12 32 32)"><path d={TICKET_PATH} fill="#7550E3" /></g>
       <g transform="rotate(-8 32 32) translate(0 7)"><path d={TICKET_PATH} fill="#FFFFFF" /></g>
     </svg>
   );
 }
 
 // ─── CLIENT MODAL (création / édition — nom, couleur ou logo) ────────────────
-const CLIENT_COLORS = ["#6366F1", "#DC2626", "#D97706", "#16A34A", "#0891B2", "#7C3AED", "#DB2777", "#6B7280"];
+const CLIENT_COLORS = ["#7550E3", "#DC2626", "#D97706", "#16A34A", "#0891B2", "#7C3AED", "#DB2777", "#6B7280"];
 
 function ClientModal({ mode, initialClient, onSave, onClose }) {
   const [name, setName] = useState(initialClient?.name || "");
@@ -3303,8 +3326,8 @@ function ClientModal({ mode, initialClient, onSave, onClose }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,22,35,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 22, width: 360, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.16)" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, padding: 30, width: 360, maxWidth: "90vw", boxShadow: T.shadowPop }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{mode === "create" ? "Nouveau client" : "Modifier le client"}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 4 }}><IC.X /></button>
@@ -3320,12 +3343,12 @@ function ClientModal({ mode, initialClient, onSave, onClose }) {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Nom du client</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Nom du client</label>
           <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSave()} placeholder="Ex: SFR" style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 7, color: T.textPrimary, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Couleur</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Couleur</label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {CLIENT_COLORS.map(c => (
               <button key={c} onClick={() => { setColor(c); setLogoDataUrl(null); }} style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: (!logoDataUrl && color === c) ? `2px solid ${T.textPrimary}` : "2px solid transparent", boxShadow: (!logoDataUrl && color === c) ? "0 0 0 2px #fff inset" : "none", cursor: "pointer", padding: 0 }} />
@@ -3334,7 +3357,7 @@ function ClientModal({ mode, initialClient, onSave, onClose }) {
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, display: "block", marginBottom: 7 }}>Ou un logo depuis tes fichiers</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, display: "block", marginBottom: 8 }}>Ou un logo depuis tes fichiers</label>
           <div style={{ display: "flex", gap: 8 }}>
             <label style={{ flex: 1, textAlign: "center", padding: "8px 10px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.bgInput, color: T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
               {logoDataUrl ? "Changer l'image" : "Choisir une image…"}
@@ -3347,8 +3370,8 @@ function ClientModal({ mode, initialClient, onSave, onClose }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
-          <button onClick={handleSave} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer" }}>{mode === "create" ? "Créer" : "Enregistrer"}</button>
+          <button onClick={onClose} style={{ height: 46, padding: "0 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer" }}>Annuler</button>
+          <button onClick={handleSave} style={{ height: 46, padding: "0 24px", borderRadius: 14, fontSize: 14, fontWeight: 700, background: T.accent, border: "none", color: "#fff", cursor: "pointer", boxShadow: "0 8px 18px rgba(117,80,227,0.28)" }}>{mode === "create" ? "Créer" : "Enregistrer"}</button>
         </div>
       </div>
     </div>
@@ -3373,23 +3396,26 @@ function ClientSwitcher({ clients, projects, activeClientId, onSwitch, onRename,
   }
 
   return (
-    <div style={{ position: "relative", marginBottom: 14 }}>
-      <button onClick={() => setOpen(v => !v)} title={activeClient?.name} style={{ width: 36, height: 36, boxSizing: "border-box", padding: 0, borderRadius: 10, background: activeClient?.logoDataUrl ? "transparent" : (activeClient?.color || "#2A2E3D"), border: `1px solid ${T.borderNav}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" }}>
-        {activeClient?.logoDataUrl
-          ? <img src={activeClient.logoDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }} />
-          : <span style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{activeClient?.name?.[0]?.toUpperCase() || "?"}</span>}
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(v => !v)} title={activeClient?.name} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 16, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+        <Avatar client={activeClient} size={34} radius={11} />
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 11, fontWeight: 500, color: T.textMuted }}>Client</span>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeClient?.name}</span>
+        </span>
+        <span style={{ display: "flex", color: T.textMuted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}><IC.Chevron /></span>
       </button>
 
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => { setOpen(false); setShowArchived(false); }} />
-          <div style={{ position: "absolute", top: 0, left: "calc(100% + 8px)", zIndex: 99, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.18)", width: 260, overflow: "hidden" }}>
-            <div style={{ padding: "8px 10px", fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: `1px solid ${T.border}` }}>Client</div>
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 99, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, boxShadow: T.shadowPop, width: 288, overflow: "hidden" }}>
+            <div style={{ padding: "12px 14px 10px", fontSize: 12, fontWeight: 700, color: T.textMuted, borderBottom: `1px solid ${T.border}` }}>Choisir un client</div>
 
             {visibleClients.map(c => (
               <div key={c.id} style={{ display: "flex", alignItems: "center", background: c.id === activeClientId ? T.bgSelected : "transparent" }}>
-                <button onClick={() => { onSwitch(c.id); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, fontWeight: c.id === activeClientId ? 700 : 500, color: T.textPrimary }}>
-                  <Avatar client={c} />
+                <button onClick={() => { onSwitch(c.id); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, textAlign: "left", padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 14, fontWeight: c.id === activeClientId ? 700 : 600, color: T.textPrimary }}>
+                  <Avatar client={c} size={26} radius={8} />
                   {c.name}
                 </button>
                 <button onClick={() => setEditingClient(c)} title="Éditer" style={{ width: 24, height: 24, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, borderRadius: 5 }}
@@ -3486,6 +3512,12 @@ function ClientSwitcher({ clients, projects, activeClientId, onSwitch, onRename,
       })()}
     </div>
   );
+}
+
+// Prénom de la personne connectée (affiché à côté de son avatar dans la barre latérale)
+function AccountName() {
+  const { user } = useUser();
+  return <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.firstName || "Mon compte"}</span>;
 }
 
 function AppContent() {
@@ -3830,7 +3862,7 @@ function AppContent() {
   // ── Loading state ──
   if (projects === null) {
     return (
-      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" }}>
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, fontFamily: T.font }}>
         <div style={{ textAlign: "center", color: T.textMuted }}>
           <div style={{ width: 36, height: 36, margin: "0 auto 16px" }}>
             <LogoMark size={36} />
@@ -3842,61 +3874,57 @@ function AppContent() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif", color: T.textPrimary, overflow: "hidden" }}>
-
-      {/* ── NAV RAIL ── */}
-      <nav style={{ width: 64, flexShrink: 0, background: T.bgNav, borderRight: `1px solid ${T.borderNav}`, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, paddingBottom: 16, zIndex: 10 }}>
-        {/* Logo */}
-        <div style={{ width: 36, height: 36, marginBottom: 14, flexShrink: 0 }}>
+    <div style={{ display: "flex", height: "100vh", background: T.bg, fontFamily: T.font, color: T.textPrimary, overflow: "hidden" }}>
+      <style>{"@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'); * { -webkit-font-smoothing: antialiased; } button, input, textarea, select { font-family: inherit; } ::selection { background: #E3D9FF; }"}</style>
+      {/* ── BARRE LATÉRALE ── */}
+      <nav style={{ width: 248, flexShrink: 0, background: T.bgSidebar, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", padding: "26px 18px 18px", boxSizing: "border-box", zIndex: 10 }}>
+        {/* Marque */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 6px", marginBottom: 24 }}>
           <LogoMark size={36} />
+          <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3, color: T.textPrimary }}>Project tracker</span>
         </div>
 
         <ClientSwitcher clients={clients} projects={projects} activeClientId={activeClientId} onSwitch={switchClient} onRename={renameClient} onCreate={createClient} onArchive={archiveClient} onUnarchive={unarchiveClient} onDeletePermanently={deleteClientPermanently} />
 
-        <div style={{ width: 28, height: 1, background: T.borderNav, marginBottom: 14, flexShrink: 0 }} />
-
-        {/* Nav items */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, width: "100%" }}>
-          {NAV_ITEMS.map(item => {
+        {/* Navigation */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 22, flex: 1 }}>
+          {NAV_ITEMS.filter(item => item.available).map(item => {
             const active = activePage === item.id;
             return (
-              <button key={item.id} onClick={() => item.available && setActivePage(item.id)} title={item.label}
-                style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, padding: "10px 0", border: "none", cursor: item.available ? "pointer" : "default", background: active ? "rgba(99,102,241,0.2)" : "transparent", color: active ? T.textNavActive : item.available ? T.textNav : "#3D4256", borderLeft: active ? `2px solid ${T.accent}` : "2px solid transparent", transition: "all 0.15s" }}
-                onMouseEnter={e => { if (item.available && !active) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+              <button key={item.id} onClick={() => setActivePage(item.id)} title={item.label}
+                style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", boxSizing: "border-box", height: 48, padding: "0 16px", border: "none", borderRadius: 14, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600, textAlign: "left", background: active ? T.accent : "transparent", color: active ? "#FFFFFF" : T.textMuted, boxShadow: active ? "0 8px 18px rgba(117,80,227,0.30)" : "none", transition: "background 0.15s, color 0.15s" }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = T.bgHover; e.currentTarget.style.color = T.textPrimary; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textMuted; } }}>
                 {item.icon(active)}
-                <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 0.2 }}>{item.label}</span>
+                <span>{item.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Export / Import */}
-
-        <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        {/* Outils : export, import, état de la sauvegarde */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
           <button
             onClick={() => {
-              const jsonStr = JSON.stringify({ projects, exportedAt: new Date().toISOString() }, null, 2);
-              const blob = new Blob([jsonStr], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `project-tracker-backup-${today()}.json`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }}
+                  const jsonStr = JSON.stringify({ projects, exportedAt: new Date().toISOString() }, null, 2);
+                  const blob = new Blob([jsonStr], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `project-tracker-backup-${today()}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
             title="Exporter toutes les données en JSON"
-            style={{ width: 28, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.borderNav}`, cursor: "pointer", color: T.textNav }}
-          >
+            style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", boxSizing: "border-box", height: 40, padding: "0 14px", borderRadius: 12, background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, fontWeight: 600, fontFamily: "inherit", textAlign: "left" }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M7 9l-3-3M7 9l3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            <span>Exporter</span>
           </button>
-          <label
-            title="Importer une sauvegarde JSON"
-            style={{ width: 28, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.borderNav}`, cursor: "pointer", color: T.textNav }}
-          >
+          <label title="Importer une sauvegarde JSON" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", boxSizing: "border-box", height: 40, padding: "0 14px", borderRadius: 12, background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, fontWeight: 600, fontFamily: "inherit", textAlign: "left" }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 9V1M7 1l-3 3M7 1l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            <span>Importer</span>
             <input type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -3932,19 +3960,16 @@ function AppContent() {
               e.target.value = "";
             }} />
           </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, height: 32, padding: "0 14px", fontSize: 12, fontWeight: 500, color: T.textMuted }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: saveStatus === "saved" ? "#2DA66A" : saveStatus === "saving" ? "#E08E1F" : saveStatus === "error" ? "#E5484D" : T.textXMuted, transition: "background 0.3s" }} title={saveStatus === "saved" ? "Sauvegardé" : saveStatus === "saving" ? "Sauvegarde…" : saveStatus === "error" ? "Erreur de sauvegarde" : "Synchronisé"} />
+            <span>{saveStatus === "saved" ? "Enregistré" : saveStatus === "saving" ? "Enregistrement…" : saveStatus === "error" ? "Erreur d'enregistrement" : "À jour"}</span>
+          </div>
         </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <UserButton appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
-        </div>
-
-        {/* Save indicator */}
-        <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-          <div style={{
-            width: 7, height: 7, borderRadius: "50%",
-            background: saveStatus === "saved" ? "#16A34A" : saveStatus === "saving" ? "#D97706" : saveStatus === "error" ? "#DC2626" : "#2A2E3D",
-            transition: "background 0.3s"
-          }} title={saveStatus === "saved" ? "Sauvegardé" : saveStatus === "saving" ? "Sauvegarde…" : saveStatus === "error" ? "Erreur de sauvegarde" : "Synchronisé"} />
+        {/* Compte (Clerk) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 8px 0" }}>
+          <UserButton appearance={{ elements: { avatarBox: { width: 34, height: 34 } } }} />
+          <AccountName />
         </div>
       </nav>
 
@@ -3958,7 +3983,7 @@ function AppContent() {
       </div>
 
       {airtableError && (
-        <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", zIndex: 1100, width: "min(720px, 92vw)", boxSizing: "border-box", background: "#7F1D1D", color: "#fff", borderRadius: 10, padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", gap: 12, alignItems: "flex-start", fontSize: 12.5, lineHeight: 1.45 }}>
+        <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", zIndex: 1100, width: "min(720px, 92vw)", boxSizing: "border-box", background: "#7F1D1D", color: "#fff", borderRadius: 16, padding: "14px 18px", boxShadow: T.shadowPop, display: "flex", gap: 12, alignItems: "flex-start", fontSize: 12.5, lineHeight: 1.45 }}>
           <div style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
             <div style={{ fontWeight: 700, marginBottom: 3 }}>Enregistrement Airtable impossible</div>
             {airtableError}
@@ -3975,7 +4000,7 @@ export default function App() {
   return (
     <>
       <SignedOut>
-        <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F5F6F8" }}>
+        <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, fontFamily: T.font }}>
           <SignIn />
         </div>
       </SignedOut>
