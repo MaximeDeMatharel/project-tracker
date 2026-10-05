@@ -3276,11 +3276,10 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
   const dateLabel = now.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <div style={{ flex: 1, minWidth: 0, overflowY: "auto", overflowX: "hidden", background: T.bg, scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
-      <div style={{ padding: "34px 40px 56px" }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, background: T.bg }}>
+      {/* En-tête : même largeur max (900 px, centrée) et mêmes marges que la page Activité */}
+      <div style={{ padding: "34px 40px 10px", flexShrink: 0 }}>
+        <div data-dash-column style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
             <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>
               Bonjour 👋
@@ -3293,9 +3292,14 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
             <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
           </div>
         </div>
+      </div>
+
+      {/* Contenu défilant : même colonne de 900 px centrée */}
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "14px 40px 44px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+      <div data-dash-column style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* ── Row 1 : Stat cards ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 34 }}>
+        <div data-dash-stats style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(128px, 1fr))", gap: 16, marginBottom: 34 }}>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <Card key={key} style={{ padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -3355,6 +3359,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
         </div>
 
       </div>
+    </div>
     </div>
   );
 }
