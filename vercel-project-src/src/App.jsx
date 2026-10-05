@@ -3995,11 +3995,11 @@ function AppContent() {
                 }}
             title="Exporter toutes les données en JSON"
             style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", boxSizing: "border-box", height: 40, padding: "0 14px", borderRadius: 12, background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, fontWeight: 600, fontFamily: "inherit", textAlign: "left" }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M7 9l-3-3M7 9l3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 9V1M7 1l-3 3M7 1l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
             <span>Exporter</span>
           </button>
           <label title="Importer une sauvegarde JSON" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", boxSizing: "border-box", height: 40, padding: "0 14px", borderRadius: 12, background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, fontWeight: 600, fontFamily: "inherit", textAlign: "left" }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 9V1M7 1l-3 3M7 1l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M7 9l-3-3M7 9l3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v1.5a1 1 0 001 1h8a1 1 0 001-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
             <span>Importer</span>
             <input type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => {
               const file = e.target.files?.[0];
