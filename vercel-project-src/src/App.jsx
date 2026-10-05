@@ -1972,7 +1972,26 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
 }
 
 // ─── PROJECT CARD ─────────────────────────────────────────────────────────────
-function SubjectCard({ project, isSelected, onClick }) {
+// Personnes à qui appartient le sujet (« Qui travaille dessus ? ») : avatars superposés + prénoms
+function SubjectOwners({ project }) {
+  const names = getAssignees(project);
+  if (names.length === 0) {
+    return <span data-card-owners style={{ marginLeft: "auto", flexShrink: 0, fontSize: 12, fontWeight: 500, color: T.textMuted }}>Non attribué</span>;
+  }
+  return (
+    <span data-card-owners title={names.join(", ")} style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0, maxWidth: "55%" }}>
+      <span style={{ display: "inline-flex", flexShrink: 0 }}>
+        {names.map((name, i) => {
+          const info = ASSIGNEE_INFO[name];
+          return <span key={name} data-owner-avatar={name} style={{ width: 22, height: 22, boxSizing: "border-box", borderRadius: "50%", border: `2px solid ${T.bgCard}`, marginLeft: i === 0 ? 0 : -7, background: info?.color || T.accent, color: "#fff", fontSize: 8, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{info?.abbr || name[0]}</span>;
+        })}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{names.join(", ")}</span>
+    </span>
+  );
+}
+
+function SubjectCard({ project, isSelected, onClick, showOwners = false }) {
   const platforms = Array.isArray(project.platforms) ? project.platforms : [];
   const last = sortEntries(project.timeline)[0];
   return (
@@ -1986,6 +2005,8 @@ function SubjectCard({ project, isSelected, onClick }) {
             <JiraKey value={project.jiraKey} size="sm" />
             {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
+            {/* À qui appartient le sujet : affiché seulement quand c'est demandé (fenêtre « Ajouter un sujet ») */}
+            {showOwners && <SubjectOwners project={project} />}
           </div>
           {/* Ligne 2 : le titre, seul sur sa ligne */}
           <div data-card-title style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: last ? 2 : 0 }}>{project.title}</div>
@@ -2812,33 +2833,59 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 // ─── ACTIVITY PAGE ────────────────────────────────────────────────────────────
 // ─── AJOUT RAPIDE PAR SEMAINE : choisir un sujet, reprend son dernier commentaire ──
-function AddToWeekPicker({ projects, weekStart, isCurrentWeek, onAdd, onClose }) {
+function AddToWeekPicker({ projects, weekLabel = "", onAdd, onClose }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
   const sortedProjects = [...projects].sort((a, b) => a.title.localeCompare(b.title));
+  // Recherche : sans tenir compte des accents ni des majuscules ; tous les mots saisis doivent être trouvés
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const terms = norm(query).split(/\s+/).filter(Boolean);
+  const results = sortedProjects.filter(p => {
+    if (terms.length === 0) return true;
+    const last = sortEntries(p.timeline || [])[0];
+    const hay = norm([p.title, p.jiraKey, ...(p.jiraLinks || []).map(l => l.key), (p.platforms || []).join(" "), (p.stakeholders || []).join(" "), getAssignees(p).join(" "), last && last.text].join(" "));
+    return terms.every(t => hay.includes(t));
+  });
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(31,29,54,0.40)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: T.bgCard, border: "none", borderRadius: 26, overflow: "hidden", width: 840, maxWidth: "90vw", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: T.shadowPop, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Choisir un sujet</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>
+      <div style={{ background: T.bgCard, borderRadius: 26, width: 640, maxWidth: "92vw", maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: T.shadowPop, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+        {/* En-tête : titre, nombre de sujets, recherche */}
+        <div data-picker-header style={{ padding: "22px 24px 16px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: T.textPrimary }}>Choisir un sujet</div>
+              <div data-picker-count style={{ fontSize: 13, fontWeight: 500, color: T.textMuted, marginTop: 3 }}>
+                {terms.length > 0 ? `${results.length} résultat${results.length > 1 ? "s" : ""} sur ${sortedProjects.length}` : `${sortedProjects.length} sujet${sortedProjects.length > 1 ? "s" : ""}`} · {weekLabel}
+              </div>
+            </div>
+            <button onClick={onClose} title="Fermer" aria-label="Fermer" style={{ width: 34, height: 34, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: T.bgHover, border: "none", borderRadius: 12, color: T.textMuted, cursor: "pointer" }}><IC.X /></button>
+          </div>
+          <div style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: T.accent, display: "flex" }}><IC.Search /></span>
+            <input
+              ref={inputRef}
+              data-picker-search
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Escape") onClose(); }}
+              placeholder="Rechercher un sujet, un ticket, une personne…"
+              style={{ width: "100%", boxSizing: "border-box", height: 46, padding: "0 42px 0 44px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusInput, boxShadow: "0 1px 2px rgba(66,40,160,0.04)", color: T.textPrimary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: "inherit" }}
+            />
+            {query && <button onClick={() => { setQuery(""); inputRef.current?.focus(); }} title="Effacer" aria-label="Effacer la recherche" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>}
+          </div>
         </div>
-        <div style={{ overflowY: "auto" }}>
+        {/* Liste : mêmes cartes que la page Sujets, sur fond teinté pour les mettre en avant */}
+        <div data-picker-list style={{ flex: 1, overflowY: "auto", padding: "14px 24px 8px", background: T.bg, borderTop: `1px solid ${T.border}`, minHeight: 120 }}>
           {sortedProjects.length === 0 ? (
-            <div style={{ padding: 20, fontSize: 12, color: T.textMuted, textAlign: "center" }}>Tous les sujets sont déjà présents cette semaine</div>
-          ) : sortedProjects.map(p => {
-            const last = sortEntries(p.timeline)[0];
-            return (
-              <button key={p.id} onClick={() => onAdd(p, last)} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 16px", background: "none", border: "none", borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}
-                onMouseEnter={ev => ev.currentTarget.style.background = T.bgHover}
-                onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <JiraKey value={p.jiraKey} size="md" />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{p.title}</span>
-                </div>
-                <div style={{ fontSize: 12, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {last ? last.text : "Aucune activité existante"}
-                </div>
-              </button>
-            );
+            <div style={{ padding: "36px 0", fontSize: 13, fontWeight: 500, color: T.textMuted, textAlign: "center" }}>Tous les sujets sont déjà présents cette semaine</div>
+          ) : results.length === 0 ? (
+            <div data-picker-empty style={{ padding: "36px 0", fontSize: 13, fontWeight: 500, color: T.textMuted, textAlign: "center" }}>Aucun sujet ne correspond à « {query.trim()} »</div>
+          ) : results.map(p => {
+            const last = sortEntries(p.timeline || [])[0];
+            return <SubjectCard key={p.id} project={p} isSelected={false} onClick={() => onAdd(p, last)} showOwners />;
           })}
         </div>
       </div>
@@ -2877,11 +2924,21 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
     return monday.toISOString().slice(0, 10);
   }
   const currentWeekStart = getWeekStart(today());
+  // Une date située DANS la semaine demandée, quel que soit le fuseau horaire :
+  // la clé d'une semaine peut être le dimanche qui précède le lundi, donc on cherche le premier jour qui retombe bien dans cette semaine.
+  function dateInWeek(weekStart) {
+    const base = new Date(weekStart + "T12:00:00");
+    for (let k = 0; k < 7; k++) {
+      const d = new Date(base); d.setDate(base.getDate() + k);
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (getWeekStart(ymd) === weekStart) return ymd;
+    }
+    return weekStart;
+  }
 
   const allEntries = useMemo(() => {
     return projects
-      .flatMap(p => p.timeline.map(e => ({ ...e, project: p })))
-      .filter(e => e.type !== "relance" && e.type !== "feedback")
+      .flatMap(p => (p.timeline || []).map(e => ({ ...e, project: p })))
       .filter(e => e.createdBy === user?.firstName)
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
@@ -3105,23 +3162,24 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                   {pickerOpen && (
                     <AddToWeekPicker
                       projects={projects.filter(p => !group.entries.some(e => e.project.id === p.id))}
-                      weekStart={group.weekStart}
-                      isCurrentWeek={group.weekStart === currentWeekStart}
+                      weekLabel={group.weekStart === currentWeekStart ? "semaine en cours" : formatWeekLabel(group.weekStart)}
                       onClose={() => setAddPickerWeek(null)}
-                      onAdd={(project, lastEntry) => {
-                        const entryDate = group.weekStart === currentWeekStart ? today() : group.weekStart;
+                      onAdd={(project) => {
+                        const entryDate = group.weekStart === currentWeekStart ? today() : dateInWeek(group.weekStart);
+                        const history = project.timeline || [];
+                        // On recopie la dernière activité du sujet telle quelle (type et texte), même s'il s'agit d'une relance ou d'un retour.
+                        // Seul un sujet sans aucun historique reçoit une « Mise à jour » vide.
+                        const source = sortEntries(history)[0];
                         const newEntry = {
                           id: `e${Date.now()}`,
-                          type: lastEntry?.type || "update",
+                          type: source?.type || "update",
                           date: entryDate,
-                          text: lastEntry?.text || "",
+                          text: source?.text || "",
                           createdAt: new Date().toISOString(),
                           createdBy: user?.firstName || null,
                         };
-                        onUpdateProject(project.id, {
-                          timeline: [...project.timeline, newEntry],
-                          lastActivity: entryDate > (project.lastActivity || "") ? entryDate : project.lastActivity,
-                        });
+                        const nextTimeline = [...history, newEntry];
+                        onUpdateProject(project.id, { timeline: nextTimeline, lastActivity: latestDate(nextTimeline) });
                         setAddPickerWeek(null);
                       }}
                     />
