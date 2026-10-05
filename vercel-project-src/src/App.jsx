@@ -1824,7 +1824,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               multiline
               enterToSave
               minRows={2}
-              style={{ fontSize: 16, color: "#3D2C8D", fontWeight: 600, lineHeight: 1.45, display: "block", width: "100%" }}
+              style={{ fontSize: 15, color: "#3D2C8D", fontWeight: 600, lineHeight: 1.55, display: "block", width: "100%" }}
             />
             </div>
             <div data-box-actions style={{ display: "flex", alignItems: "stretch", gap: 8, flexShrink: 0 }}>
@@ -1852,7 +1852,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
             <div data-box-text style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}>
               <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, letterSpacing: 0.5, textTransform: "uppercase", color: "#8E6CEB" }}>Message à envoyer</div>
               {!genMessage && !genLoading && (
-                <div style={{ marginTop: 6, fontSize: 15, fontWeight: 500, color: "#A992EE" }}>Aucun message pour le moment</div>
+                <div style={{ marginTop: 6, fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: "#A992EE" }}>Aucun message pour le moment</div>
               )}
             </div>
             <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -1893,7 +1893,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
                   onChange={e => { setGenMessage(e.target.value); saveGenMessage(e.target.value); }}
                   rows={3}
                   ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}   /* le champ s'ajuste à la longueur du message : rien n'est coupé */
-                  style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+                  style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.55, fontFamily: "inherit", paddingRight: 46 }}
                 />
                 <button onClick={copyGenMessage} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: genCopied ? "#DCFCE7" : T.bgCard, border: `1px solid ${genCopied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: genCopied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
                   {genCopied ? (
@@ -2800,7 +2800,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               onChange={e => { setMessage(e.target.value); saveMessage(e.target.value); }}
               rows={3}
               ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
-              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.55, fontFamily: "inherit", paddingRight: 46 }}
             />
             <button onClick={copy} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: copied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
               {copied ? (
@@ -3005,7 +3005,7 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
               onChange={e => { setRelance(e.target.value); saveRelance(e.target.value); }}
               rows={3}
               ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
-              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.55, fontFamily: "inherit", paddingRight: 46 }}
             />
             <button onClick={copy} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: copied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
               {copied ? (
