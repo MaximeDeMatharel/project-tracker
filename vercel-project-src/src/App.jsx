@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import { SignedIn, SignedOut, SignIn, UserButton, useUser } from "@clerk/clerk-react";
 
 // ─── window.storage shim (remplace l'API artifact-preview par localStorage) ──
@@ -1812,11 +1812,11 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
         )}
 
         {/* Next action */}
-        <div style={{ marginTop: 22, padding: 12, background: T.accentBg, border: `1px solid ${T.accent}22`, borderRadius: 18 }}>
-          {/* Rangée : colonne de texte (titre + description, en vertical) | colonne des boutons (collée en haut à droite) */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <div data-box-text style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: T.accent, marginBottom: 2 }}>Prochaine action</div>
+        <div data-detail-box="next" style={{ marginTop: 22, padding: 12, background: "#EEE9FC", border: "1px solid #DCD1F8", borderRadius: 22 }}>
+          {/* Rangée : colonne de texte (titre + description, en vertical) | bouton IA à droite, sur toute la hauteur du texte (52 px au minimum) */}
+          <div style={{ display: "flex", alignItems: "stretch", gap: 12 }}>
+            <div data-box-text style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, letterSpacing: 0.5, textTransform: "uppercase", color: "#8E6CEB", marginBottom: 6 }}>Prochaine action</div>
               <EditableText
               value={project.nextAction || ""}
               onChange={v => patch({ nextAction: v })}
@@ -1824,73 +1824,91 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               multiline
               enterToSave
               minRows={2}
-              style={{ fontSize: 14, color: T.accentText, fontWeight: 600, display: "block", width: "100%" }}
+              style={{ fontSize: 16, color: "#3D2C8D", fontWeight: 600, lineHeight: 1.45, display: "block", width: "100%" }}
             />
             </div>
-            <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: aiLoading ? T.textMuted : `${T.accent}18`, border: "none", borderRadius: 12, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "all 0.15s" }}>
+            <div data-box-actions style={{ display: "flex", alignItems: "stretch", gap: 8, flexShrink: 0 }}>
+              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 52, minHeight: 52, alignSelf: "stretch", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "background 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
                 {aiLoading ? (
-                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
                 ) : (
-                  <IC.Sparkle />
+                  <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>
                 )}
               </button>
             </div>
           </div>
           {aiError && (
-              <div style={{ marginTop: 8, fontSize: 11, color: "#DC2626", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 6, padding: "5px 8px" }}>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#DC2626", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 10, padding: "6px 10px" }}>
                 ⚠️ {aiError}
               </div>
             )}
         </div>
 
         {/* Rédiger un message — bloc séparé */}
-        <div style={{ marginTop: 12, padding: 12, background: "#F8F5FF", border: "1px solid #7C3AED1F", borderRadius: 18 }}>
-          {/* Rangée : colonne de texte (titre + description) | colonne des boutons (à droite) */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <div data-box-text style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: "#7C3AED" }}>Message à envoyer</div>
+        <div data-detail-box="message" style={{ marginTop: 12, padding: 12, background: "#F6F3FE", border: "1px solid #E4DCF8", borderRadius: 22 }}>
+          {/* Rangée du haut : titre (et texte d'attente) | bouton à droite (✨ sans message, ✓ « Valider » avec un message) */}
+          <div style={{ display: "flex", alignItems: genMessage ? "center" : "flex-start", gap: 12 }}>
+            <div data-box-text style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, letterSpacing: 0.5, textTransform: "uppercase", color: "#8E6CEB" }}>Message à envoyer</div>
               {!genMessage && !genLoading && (
-                <div style={{ marginTop: 2, fontSize: 13, fontWeight: 500, color: "#7C3AE0A0" }}>Aucun message pour le moment</div>
+                <div style={{ marginTop: 6, fontSize: 15, fontWeight: 500, color: "#A992EE" }}>Aucun message pour le moment</div>
               )}
             </div>
-            <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              {genMessage && (
-                <button onClick={validateGenMessage} disabled={genValidating} title="Marquer comme fait et ajouter à l'historique" aria-label="Valider" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "4px 10px", height: 26, background: genValidated ? "#DCFCE7" : T.bgHover, border: `1px solid ${genValidated ? "#16A34A40" : T.border}`, borderRadius: 6, cursor: genValidating ? "wait" : "pointer", color: genValidated ? "#16A34A" : T.textSecondary, transition: "all 0.2s", opacity: genValidating ? 0.6 : 1 }}>
-                  {genValidating ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : genValidated ? "✓" : <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  {genValidating ? "Validation…" : genValidated ? "Ajouté" : "Valider"}
+            <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {genMessage ? (
+                <button onClick={validateGenMessage} disabled={genValidating} title={genValidated ? "Ajouté à l'historique" : "Valider : marquer comme fait et ajouter à l'historique"} aria-label="Valider" data-validate-button style={{ width: 52, height: 40, flexShrink: 0, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", background: genValidated ? "#DCFCE7" : "#E9F7EF", border: "1px solid #2DA66A40", borderRadius: 14, cursor: genValidating ? "wait" : "pointer", color: "#1F8A55", transition: "background 0.15s, border-color 0.15s", opacity: genValidating ? 0.6 : 1 }}
+                  onMouseEnter={e => { if (!genValidated) { e.currentTarget.style.background = "#2DA66A"; e.currentTarget.style.borderColor = "#2DA66A"; e.currentTarget.style.color = "#fff"; } }}
+                  onMouseLeave={e => { if (!genValidated) { e.currentTarget.style.background = "#E9F7EF"; e.currentTarget.style.borderColor = "#2DA66A40"; e.currentTarget.style.color = "#1F8A55"; } }}>
+                  {genValidating
+                    ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
+                    : <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4.5 10.5l3.5 3.5 7.5-8.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+              ) : (
+                <button onClick={generateGenMessage} disabled={genLoading} title="Rédiger un message" aria-label="Rédiger un message" style={{ width: 52, height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, cursor: genLoading ? "wait" : "pointer", transition: "background 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+                  {genLoading ? (
+                    <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
+                  ) : (
+                    <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>
+                  )}
                 </button>
               )}
-              <button onClick={generateGenMessage} disabled={genLoading} title={genMessage ? "Régénérer le message" : "Rédiger un message"} aria-label={genMessage ? "Régénérer le message" : "Rédiger un message"} style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#7C3AED", background: genLoading ? T.textMuted : "#7C3AED18", border: "none", borderRadius: 12, cursor: genLoading ? "wait" : "pointer", transition: "all 0.15s" }}>
-                {genLoading ? (
-                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
-                ) : (
-                  <IC.Sparkle />
-                )}
-              </button>
             </div>
           </div>
 
-
           {genError && !genLoading && (
-            <div style={{ marginTop: 8, padding: "10px 12px", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 8, fontSize: 11, color: "#DC2626" }}>
+            <div style={{ marginTop: 10, padding: "8px 12px", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 10, fontSize: 12, color: "#DC2626" }}>
               ⚠️ {genError}
             </div>
           )}
 
           {genMessage && (
-            <div style={{ marginTop: 8, padding: 10, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, position: "relative" }}>
-              <textarea
-                value={genMessage}
-                onChange={e => { setGenMessage(e.target.value); saveGenMessage(e.target.value); }}
-                rows={Math.max(3, genMessage.split("\n").length)}
-                style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", display: "block", fontSize: 12, color: T.textSecondary, lineHeight: 1.7, fontFamily: "inherit", paddingRight: 32 }}
-              />
-              <button onClick={copyGenMessage} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: genCopied ? "#DCFCE7" : T.bgCard, border: `1px solid ${genCopied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: genCopied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}>
-                {genCopied ? (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            /* Rangée du bas : le message (pleine largeur) | bouton ✨ « Régénérer » sur toute la hauteur du message */
+            <div data-message-row style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 10 }}>
+              <div style={{ flex: 1, minWidth: 0, padding: "10px 12px", background: T.bgCard, border: "1px solid #E4DEF5", borderRadius: 14, position: "relative" }}>
+                <textarea
+                  data-message-text
+                  value={genMessage}
+                  onChange={e => { setGenMessage(e.target.value); saveGenMessage(e.target.value); }}
+                  rows={3}
+                  ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}   /* le champ s'ajuste à la longueur du message : rien n'est coupé */
+                  style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+                />
+                <button onClick={copyGenMessage} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: genCopied ? "#DCFCE7" : T.bgCard, border: `1px solid ${genCopied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: genCopied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
+                  {genCopied ? (
+                    <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  )}
+                </button>
+              </div>
+              <button onClick={generateGenMessage} disabled={genLoading} title="Régénérer le message" aria-label="Régénérer le message" style={{ width: 52, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, cursor: genLoading ? "wait" : "pointer", transition: "background 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+                {genLoading ? (
+                  <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>
                 )}
               </button>
             </div>
@@ -2005,6 +2023,8 @@ function SubjectCard({ project, isSelected, onClick, showOwners = false }) {
             <JiraKey value={project.jiraKey} size="sm" />
             {platforms.map(p => <PlatformStamp key={p} name={p} size="sm" />)}
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
+            {/* Interlocuteur(s) : en haut à droite de la carte (dans la fenêtre « Ajouter un sujet », cette place sert aux propriétaires) */}
+            {!showOwners && project.stakeholders?.length > 0 && <span data-card-person style={{ marginLeft: "auto", minWidth: 0, maxWidth: "50%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 500, lineHeight: 1.35, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>}
             {/* À qui appartient le sujet : affiché seulement quand c'est demandé (fenêtre « Ajouter un sujet ») */}
             {showOwners && <SubjectOwners project={project} />}
           </div>
@@ -2127,7 +2147,6 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Sujets</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: T.textMuted, marginTop: 4 }}>{projects.length} sujets · {counts.in_progress} en cours</div>
             </div>
             <button onClick={() => setShowAddProject(true)} title="Nouveau sujet" style={{ width: 46, height: 46, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: T.accent, border: "none", cursor: "pointer", color: "#fff", boxShadow: "0 10px 22px rgba(117,80,227,0.32)" }}>
               <IC.Plus />
@@ -2198,10 +2217,11 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
 
   return (
     <div onClick={onOpen} style={{
-      background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: 16,
+      background: T.bgCard, border: `1.5px solid ${isDragging ? "rgba(117,80,227,0.35)" : isSelected ? T.accent : "transparent"}`, borderRadius: 16,
       padding: "12px 14px 11px", marginBottom: 6, cursor: "pointer",
-      boxShadow: isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : (isSelected ? "0 0 0 4px rgba(117,80,227,0.10)" : "none"),
-      opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s, border-color 0.15s",
+      boxShadow: isDragging ? "0 18px 40px rgba(66,40,160,0.22), 0 2px 6px rgba(66,40,160,0.08)" : (isSelected ? "0 0 0 4px rgba(117,80,227,0.10)" : "none"),
+      cursor: isDragging ? "grabbing" : "pointer",
+      transition: "box-shadow 0.15s, border-color 0.15s",
       userSelect: "none",
     }}
     onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; } }}
@@ -2247,23 +2267,35 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
   );
 }
 
-function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOver, setDragOver, onOpen, selectedId, dropBefore, onHoverSlot }) {
+function KanbanColumn({ column, projects, drag, zoneRef, onCardPointerDown, onOpen, selectedId }) {
   const cfg = STATUS_CONFIG[column.key];
   const count = projects.length;
-  const isOver = dragOver === column.key;
-  // Repère d'insertion : affiché avant la carte `beforeId` (ou en bas de colonne si beforeId est null)
-  const lineAt = (beforeId) => isOver && dropBefore && dropBefore.status === column.key && dropBefore.beforeId === beforeId;
-  const dropLine = (pos) => (
-    <div style={{ position: "absolute", left: 2, right: 2, [pos]: pos === "top" ? -4 : 2, height: 3, borderRadius: 2, background: cfg.color, boxShadow: `0 0 0 2px ${cfg.color}22`, pointerEvents: "none", zIndex: 2 }} />
+  // Pendant un glisser, la carte déplacée quitte sa colonne et un emplacement s'ouvre à l'endroit visé
+  const visible = drag ? projects.filter(p => p.id !== drag.id) : projects;
+  const isOver = !!(drag && drag.target && drag.target.status === column.key);
+  const phIndex = isOver ? Math.min(drag.target.index, visible.length) : -1;
+  const placeholder = (
+    <div key="__placeholder" data-kanban-placeholder style={{ height: drag ? Math.max(40, drag.height - 6) : 0, marginBottom: 6, borderRadius: 16, background: `${cfg.color}12`, border: `1.5px dashed ${cfg.color}66`, boxSizing: "border-box" }} />
   );
+  const items = [];
+  visible.forEach((p, i) => {
+    if (i === phIndex) items.push(placeholder);
+    items.push(
+      <div
+        key={p.id}
+        data-kanban-card={p.id}
+        style={{ position: "relative", display: "flow-root", touchAction: "manipulation" }}
+        onPointerDown={e => onCardPointerDown(e, p)}
+        onDragStart={e => e.preventDefault()}
+      >
+        <KanbanCard project={p} isSelected={p.id === selectedId} onOpen={() => onOpen(p.id)} />
+      </div>
+    );
+  });
+  if (phIndex === visible.length) items.push(placeholder);
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "rgba(117,80,227,0.05)", borderRadius: 22, padding: "14px 6px 4px", boxSizing: "border-box" }}
-      onDragOver={e => { e.preventDefault(); setDragOver(column.key); onHoverSlot(column.key, null); }}
-      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
-      onDrop={e => { e.preventDefault(); setDragOver(null); onDrop(); }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "rgba(117,80,227,0.05)", borderRadius: 22, padding: "14px 6px 4px", boxSizing: "border-box" }}>
       {/* Column header */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px 12px", flexShrink: 0 }}>
         <span style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
@@ -2272,43 +2304,20 @@ function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOv
       </div>
 
       {/* Cards zone */}
-      <div style={{
-        flex: 1, overflowY: "auto", padding: "4px 0 10px",
-        background: isOver ? `${cfg.color}08` : "transparent",
-        borderRadius: 10, border: `2px dashed ${isOver ? cfg.color + "40" : "transparent"}`,
-        transition: "background 0.15s, border-color 0.15s", minHeight: 60,
+      <div ref={zoneRef} data-kanban-zone={column.key} style={{
+        position: "relative", flex: 1, overflowY: "auto", padding: "4px 0 10px", minHeight: 60,
         scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent`,
       }}>
-        {count === 0 && !isOver && (
+        {visible.length === 0 && !isOver && (
           <div style={{ textAlign: "center", color: T.textXMuted, fontSize: 12, padding: "24px 0" }}>Vide</div>
         )}
-        {projects.map((p, i) => (
-          <div
-            key={p.id}
-            style={{ position: "relative", display: "flow-root" }}
-            draggable
-            onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", p.id); onDragStart(p.id); }}
-            onDragEnd={onDragEnd}
-            onDragOver={e => {
-              e.preventDefault(); e.stopPropagation();
-              setDragOver(column.key);
-              const r = e.currentTarget.getBoundingClientRect();
-              // Moitié haute de la carte → avant elle ; moitié basse → avant la suivante (ou en bas de colonne)
-              onHoverSlot(column.key, e.clientY < r.top + r.height / 2 ? p.id : (projects[i + 1]?.id ?? null));
-            }}
-          >
-            {lineAt(p.id) && dropLine("top")}
-            <KanbanCard project={p} isSelected={p.id === selectedId} onOpen={() => onOpen(p.id)} />
-            {i === projects.length - 1 && lineAt(null) && dropLine("bottom")}
-          </div>
-        ))}
+        {items}
       </div>
     </div>
   );
 }
 
 function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDeleteActivity, incomingSync, onSyncConsumed }) {
-  const [dragOver, setDragOver] = useState(null);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const selected = allProjects.find(p => p.id === selectedId) || null;
@@ -2332,9 +2341,6 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
   // Changement de personne : le panneau se referme, comme la fiche se met à jour sur la page Sujets.
   useEffect(() => { setSelectedId(null); }, [filterAssignee]);
 
-  const dragId = useRef(null);
-  const dropRef = useRef(null);            // dernier emplacement survolé : { status, beforeId }
-  const [dropBefore, setDropBefore] = useState(null);
 
   const projects = useMemo(
     () => allProjects.filter(p => filterAssignee === "all" || getAssignees(p).includes(filterAssignee)),
@@ -2351,38 +2357,199 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
     );
   }, [projects, search]);
 
-  function hoverSlot(status, beforeId) {
-    const cur = dropRef.current;
-    if (cur && cur.status === status && cur.beforeId === beforeId) return;
-    dropRef.current = { status, beforeId };
-    setDropBefore({ status, beforeId });
+  // ── Glisser-déposer « en direct » ───────────────────────────────────────────
+  // La carte suit la souris, un emplacement s'ouvre là où elle va tomber et les autres cartes glissent
+  // pour lui faire de la place (animation FLIP). Au lâcher, la carte se pose dans son emplacement.
+  const [drag, setDrag] = useState(null);        // { id, width, height, target: { status, index } }
+  const dragMeta = useRef(null);                 // données du geste en cours (sans re-rendu)
+  const overlayRef = useRef(null);
+  const boardRef = useRef(null);
+  const zoneRefs = useRef({});
+  const flipSnap = useRef(null);
+  const justDragged = useRef(0);
+  const live = useRef({});                       // dernières versions des fonctions du geste
+  const listeners = useRef(null);                // écouteurs stables, ajoutés / retirés à l'identique
+  if (!listeners.current) listeners.current = {
+    move: e => live.current.onPointerMove(e),
+    up: e => live.current.onPointerUp(e),
+    cancel: e => live.current.onPointerCancel(e),
+    key: e => live.current.onDragKey(e),
+    frame: () => live.current.autoScroll(),
+  };
+  const columnLists = useMemo(() => {
+    const out = {};
+    KANBAN_COLUMNS.forEach(col => { out[col.key] = byKanbanOrder(filtered.filter(p => p.status === col.key)); });
+    return out;
+  }, [filtered]);
+  const listsRef = useRef(columnLists); listsRef.current = columnLists;
+  const allRef = useRef(allProjects); allRef.current = allProjects;
+
+  // Photo des positions affichées des cartes, juste avant un changement : sert à animer le déplacement
+  function snapshotPositions() {
+    const m = new Map();
+    if (boardRef.current) boardRef.current.querySelectorAll("[data-kanban-card]").forEach(el => m.set(el.getAttribute("data-kanban-card"), el.getBoundingClientRect().top));
+    flipSnap.current = m;
   }
-  function endDrag() {
-    dragId.current = null;
-    dropRef.current = null;
-    setDropBefore(null);
-    setDragOver(null);
+  useLayoutEffect(() => {
+    const snap = flipSnap.current;
+    if (!snap || !boardRef.current) return;
+    flipSnap.current = null;
+    boardRef.current.querySelectorAll("[data-kanban-card]").forEach(el => {
+      const prev = snap.get(el.getAttribute("data-kanban-card"));
+      if (prev == null) return;
+      el.style.transition = "none";
+      el.style.transform = "";
+      const delta = prev - el.getBoundingClientRect().top;
+      if (Math.abs(delta) < 0.5) return;
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect();   // force le calcul avant de lancer l'animation
+      el.style.transition = "transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1)";
+      el.style.transform = "";
+    });
+  });
+
+  function placeOverlay() {
+    const m = dragMeta.current, el = overlayRef.current;
+    if (!m || !el || m.dropping) return;
+    el.style.transform = `translate3d(${m.x - m.offX}px, ${m.y - m.offY}px, 0) rotate(1.5deg)`;
   }
-  function handleDrop(targetStatus) {
-    const id = dragId.current;
-    if (!id) return;
-    const slot = dropRef.current && dropRef.current.status === targetStatus ? dropRef.current : { status: targetStatus, beforeId: null };
-    // Le calcul se fait sur TOUS les sujets de la colonne (même ceux masqués par un filtre) pour garder un ordre cohérent
-    const changes = planKanbanMove(allProjects, id, targetStatus, slot.beforeId);
-    if (Object.keys(changes).length > 0) {
-      if (onReorder) onReorder(changes);
-      else Object.entries(changes).forEach(([pid, ch]) => onUpdate(pid, ch));
+  useLayoutEffect(() => { if (drag) placeOverlay(); }, [drag && drag.id]);
+
+  // Emplacement visé : colonne la plus proche du pointeur, puis position parmi ses cartes (milieu de chaque carte)
+  function computeTarget(x, y) {
+    let best = null, bestDist = Infinity;
+    KANBAN_COLUMNS.forEach(col => {
+      const el = zoneRefs.current[col.key];
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+      if (dx < bestDist) { bestDist = dx; best = { status: col.key, el, r }; }
+    });
+    if (!best) return null;
+    const yIn = y - best.r.top + best.el.scrollTop;
+    let index = 0;
+    for (const c of best.el.querySelectorAll(":scope > [data-kanban-card]")) {
+      if (yIn > c.offsetTop + c.offsetHeight / 2) index++; else break;
     }
-    endDrag();
+    return { status: best.status, index };
   }
+  function updateTarget() {
+    const m = dragMeta.current;
+    if (!m || !m.started || m.dropping) return;
+    const t = computeTarget(m.x, m.y);
+    if (!t || (m.target && t.status === m.target.status && t.index === m.target.index)) return;
+    snapshotPositions();
+    m.target = t;
+    setDrag(d => d ? { ...d, target: t } : d);
+  }
+
+  function stopListening() {
+    window.removeEventListener("pointermove", listeners.current.move);
+    window.removeEventListener("pointerup", listeners.current.up);
+    window.removeEventListener("pointercancel", listeners.current.cancel);
+    window.removeEventListener("keydown", listeners.current.key);
+    const m = dragMeta.current;
+    if (m && m.raf) cancelAnimationFrame(m.raf);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+  }
+  function finishDrag() {
+    stopListening();
+    if (dragMeta.current && dragMeta.current.started) justDragged.current = Date.now();
+    dragMeta.current = null;
+    setDrag(null);
+  }
+  // Défilement automatique d'une colonne quand on approche de son bord haut ou bas
+  function autoScroll() {
+    const m = dragMeta.current;
+    if (!m || !m.started) return;
+    if (!m.dropping && m.target) {
+      const el = zoneRefs.current[m.target.status];
+      if (el) {
+        const r = el.getBoundingClientRect(), edge = 56;
+        let v = 0;
+        if (m.y < r.top + edge) v = -Math.ceil((r.top + edge - m.y) / 4);
+        else if (m.y > r.bottom - edge) v = Math.ceil((m.y - (r.bottom - edge)) / 4);
+        if (v) { const before = el.scrollTop; el.scrollTop += v; if (el.scrollTop !== before) updateTarget(); }
+      }
+    }
+    m.raf = requestAnimationFrame(listeners.current.frame);
+  }
+  function onPointerMove(e) {
+    const m = dragMeta.current;
+    if (!m) return;
+    m.x = e.clientX; m.y = e.clientY;
+    if (!m.started) {
+      if (Math.hypot(e.clientX - m.startX, e.clientY - m.startY) < 5) return;   // simple clic : pas de glisser
+      m.started = true;
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "grabbing";
+      snapshotPositions();
+      m.target = { status: m.fromStatus, index: m.fromIndex };
+      setDrag({ id: m.id, width: m.width, height: m.height, target: m.target });
+      m.raf = requestAnimationFrame(listeners.current.frame);
+    }
+    placeOverlay();
+    updateTarget();
+  }
+  function onPointerUp() {
+    const m = dragMeta.current;
+    if (!m || !m.started) { stopListening(); dragMeta.current = null; return; }
+    if (m.dropping) return;
+    m.dropping = true;
+    const commit = () => {
+      const t = m.target;
+      const list = (listsRef.current[t.status] || []).filter(p => p.id !== m.id);
+      const beforeId = list[t.index] ? list[t.index].id : null;
+      // Le calcul se fait sur TOUS les sujets de la colonne (même ceux masqués par un filtre) pour garder un ordre cohérent
+      const changes = planKanbanMove(allRef.current, m.id, t.status, beforeId);
+      if (Object.keys(changes).length > 0) {
+        if (onReorder) onReorder(changes);
+        else Object.entries(changes).forEach(([pid, ch]) => onUpdate(pid, ch));
+      }
+      finishDrag();
+    };
+    // La carte se pose dans l'emplacement ouvert, puis prend sa place
+    const ph = boardRef.current && boardRef.current.querySelector("[data-kanban-placeholder]");
+    const el = overlayRef.current;
+    if (ph && el) {
+      const r = ph.getBoundingClientRect();
+      el.style.transition = "transform 170ms cubic-bezier(0.2, 0.7, 0.2, 1)";
+      el.style.transform = `translate3d(${r.left}px, ${r.top}px, 0) rotate(0deg)`;
+      setTimeout(commit, 170);
+    } else commit();
+  }
+  function onPointerCancel() { if (dragMeta.current && dragMeta.current.started) { snapshotPositions(); } finishDrag(); }
+  function onDragKey(e) {
+    if (e.key === "Escape" && dragMeta.current && dragMeta.current.started && !dragMeta.current.dropping) { snapshotPositions(); finishDrag(); }   // Échap annule le déplacement
+  }
+  function startPointer(e, project) {
+    if (e.button !== 0 || dragMeta.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const list = listsRef.current[project.status] || [];
+    dragMeta.current = {
+      id: project.id, fromStatus: project.status, fromIndex: Math.max(0, list.findIndex(p => p.id === project.id)),
+      startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY,
+      offX: e.clientX - rect.left, offY: e.clientY - rect.top, width: rect.width, height: rect.height,
+      started: false, target: null, dropping: false, raf: 0,
+    };
+    window.addEventListener("pointermove", listeners.current.move);
+    window.addEventListener("pointerup", listeners.current.up);
+    window.addEventListener("pointercancel", listeners.current.cancel);
+    window.addEventListener("keydown", listeners.current.key);
+  }
+  live.current = { onPointerMove, onPointerUp, onPointerCancel, onDragKey, autoScroll, stopListening };
+  useEffect(() => () => live.current.stopListening(), []);
+  // Après un glisser, le relâchement ne doit pas ouvrir la fiche de la carte
+  const openCard = (id) => { if (Date.now() - justDragged.current < 350) return; setSelectedId(id); };
+  const dragProject = drag ? allProjects.find(p => p.id === drag.id) : null;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
       {/* En-tête */}
-      <div style={{ padding: "34px 40px 20px", flexShrink: 0, display: "flex", alignItems: "flex-end", gap: 14 }}>
+      <div style={{ padding: "34px 40px 20px", flexShrink: 0, display: "flex", alignItems: "center", gap: 14 }}>
         <div>
           <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Kanban</div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: T.textMuted, marginTop: 4 }}>{projects.length} sujets</div>
         </div>
         <div style={{ marginLeft: "auto", width: 230 }}>
           <PersonFilterDropdown value={filterAssignee} onChange={setFilterAssignee} />
@@ -2395,25 +2562,28 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
 
       {/* Board */}
       <div style={{ flex: 1, overflow: "auto", padding: "4px 40px 28px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 8, height: "calc(100% - 0px)", minHeight: 0 }}>
+        <div ref={boardRef} style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 8, height: "calc(100% - 0px)", minHeight: 0 }}>
           {KANBAN_COLUMNS.map(col => (
             <KanbanColumn
               key={col.key}
               column={col}
-              projects={byKanbanOrder(filtered.filter(p => p.status === col.key))}
-              onDragStart={id => { dragId.current = id; }}
-              onDragEnd={endDrag}
-              onDrop={() => handleDrop(col.key)}
-              dropBefore={dropBefore}
-              onHoverSlot={hoverSlot}
-              dragOver={dragOver}
-              setDragOver={setDragOver}
-              onOpen={setSelectedId}
+              projects={columnLists[col.key]}
+              drag={drag}
+              zoneRef={el => { zoneRefs.current[col.key] = el; }}
+              onCardPointerDown={startPointer}
+              onOpen={openCard}
               selectedId={selectedId}
             />
           ))}
         </div>
       </div>
+
+      {/* Carte en cours de déplacement : elle suit la souris */}
+      {drag && dragProject && (
+        <div ref={overlayRef} data-kanban-drag-overlay style={{ position: "fixed", left: 0, top: 0, width: drag.width, zIndex: 1000, pointerEvents: "none", willChange: "transform", transformOrigin: "50% 30%" }}>
+          <KanbanCard project={dragProject} isDragging isSelected={false} onOpen={() => {}} />
+        </div>
+      )}
 
       {/* Panneau de détail : glisse depuis la droite et recouvre le tableau */}
       {selected && (
@@ -2591,21 +2761,24 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           <div style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{project.nextAction}</div>
         </div>
         {/* Colonne des boutons : collée en bas à droite */}
-        <div data-card-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              {message && (
-                <button onClick={validateAndLog} disabled={validating} title="Marquer comme fait et ajouter à l'historique" aria-label="Valider" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "4px 10px", background: validated ? "#DCFCE7" : T.bgHover, border: `1px solid ${validated ? "#16A34A40" : T.border}`, borderRadius: 6, cursor: validating ? "wait" : "pointer", color: validated ? "#16A34A" : T.textSecondary, transition: "all 0.2s", opacity: validating ? 0.6 : 1 }}>
-                  {validating ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : validated ? "✓" : <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  {validating ? "Validation…" : validated ? "Ajouté" : "Valider"}
+        <div data-card-actions style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {message ? (
+                <button onClick={validateAndLog} disabled={validating} title={validated ? "Ajouté à l'historique" : "Valider : marquer comme fait et ajouter à l'historique"} aria-label="Valider" data-validate-button style={{ width: 52, height: 40, flexShrink: 0, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", background: validated ? "#DCFCE7" : "#E9F7EF", border: "1px solid #2DA66A40", borderRadius: 14, cursor: validating ? "wait" : "pointer", color: "#1F8A55", transition: "background 0.15s, border-color 0.15s", opacity: validating ? 0.6 : 1 }}
+                  onMouseEnter={e => { if (!validated) { e.currentTarget.style.background = "#2DA66A"; e.currentTarget.style.borderColor = "#2DA66A"; e.currentTarget.style.color = "#fff"; } }}
+                  onMouseLeave={e => { if (!validated) { e.currentTarget.style.background = "#E9F7EF"; e.currentTarget.style.borderColor = "#2DA66A40"; e.currentTarget.style.color = "#1F8A55"; } }}>
+                  {validating ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4.5 10.5l3.5 3.5 7.5-8.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+              ) : (
+                <button onClick={generateMessage} disabled={loading} title={loading ? "Rédaction…" : "Rédiger"} aria-label={loading ? "Rédaction…" : "Rédiger"} style={{ width: 52, height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, transition: "background 0.15s", cursor: loading ? "wait" : "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+                  {loading ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>}
                 </button>
               )}
-              <button onClick={generateMessage} disabled={loading} title={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} aria-label={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
-                {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
-              </button>
         </div>
       </div>
 
       {loading && !message && (
-        <div style={{ marginTop: 10, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginTop: 12, padding: "10px 12px", background: "#F8F6FE", border: "1px solid #E4DEF5", borderRadius: 14, display: "flex", alignItems: "center", gap: 8 }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="6" cy="6" r="4.5" stroke={T.accent} strokeWidth="1.6" strokeDasharray="18" strokeDashoffset="9"/></svg>
           <span style={{ fontSize: 12, color: T.textMuted }}>Rédaction du message…</span>
         </div>
@@ -2618,19 +2791,28 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       )}
 
       {message && (
-        <div style={{ marginTop: 10, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, position: "relative" }}>
-          <textarea
-            value={message}
-            onChange={e => { setMessage(e.target.value); saveMessage(e.target.value); }}
-            rows={Math.max(3, message.split("\n").length)}
-            style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", fontSize: 12, color: T.textSecondary, lineHeight: 1.7, fontFamily: "inherit", paddingRight: 32 }}
-          />
-          <button onClick={copy} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: copied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}>
-            {copied ? (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            )}
+        /* Le message (pleine largeur) | bouton ✨ « Régénérer » sur toute la hauteur du message — même design que la fiche d'un sujet */
+        <div data-message-row style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 12 }}>
+          <div style={{ flex: 1, minWidth: 0, padding: "10px 12px", background: "#F8F6FE", border: "1px solid #E4DEF5", borderRadius: 14, position: "relative" }}>
+            <textarea
+              data-message-text
+              value={message}
+              onChange={e => { setMessage(e.target.value); saveMessage(e.target.value); }}
+              rows={3}
+              ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+            />
+            <button onClick={copy} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: copied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
+              {copied ? (
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              )}
+            </button>
+          </div>
+          <button onClick={generateMessage} disabled={loading} title="Régénérer" aria-label="Régénérer" style={{ width: 52, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, cursor: loading ? "wait" : "pointer", transition: "background 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+            {loading ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>}
           </button>
         </div>
       )}
@@ -2785,14 +2967,23 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
           <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: wc.color, background: wc.bg, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" }}>
           {days === 0 ? "Auj." : days === 1 ? "Hier" : days < 7 ? `${days}j` : days < 30 ? `${Math.floor(days / 7)} sem.` : `${Math.floor(days / 30)} mois`}
         </span>
-        <button onClick={generateRelance} disabled={loading} title={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} aria-label={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
-          {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
-        </button>
+        {relance ? (
+          <button onClick={validateAndLog} disabled={validating} title={validated ? "Ajouté à l'historique" : "Valider : marquer comme envoyé et ajouter à l'historique"} aria-label="Valider" data-validate-button style={{ width: 52, height: 40, flexShrink: 0, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", background: validated ? "#DCFCE7" : "#E9F7EF", border: "1px solid #2DA66A40", borderRadius: 14, cursor: validating ? "wait" : "pointer", color: "#1F8A55", transition: "background 0.15s, border-color 0.15s", opacity: validating ? 0.6 : 1 }}
+                  onMouseEnter={e => { if (!validated) { e.currentTarget.style.background = "#2DA66A"; e.currentTarget.style.borderColor = "#2DA66A"; e.currentTarget.style.color = "#fff"; } }}
+                  onMouseLeave={e => { if (!validated) { e.currentTarget.style.background = "#E9F7EF"; e.currentTarget.style.borderColor = "#2DA66A40"; e.currentTarget.style.color = "#1F8A55"; } }}>
+                  {validating ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4.5 10.5l3.5 3.5 7.5-8.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+        ) : (
+          <button onClick={generateRelance} disabled={loading} title={loading ? "Rédaction…" : "Relancer"} aria-label={loading ? "Rédaction…" : "Relancer"} style={{ width: 52, height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, transition: "background 0.15s", cursor: loading ? "wait" : "pointer" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+            {loading ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>}
+          </button>
+        )}
         </div>
       </div>
 
       {loading && !relance && (
-        <div style={{ marginTop: 10, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginTop: 12, padding: "10px 12px", background: "#F8F6FE", border: "1px solid #E4DEF5", borderRadius: 14, display: "flex", alignItems: "center", gap: 8 }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="6" cy="6" r="4.5" stroke={T.accent} strokeWidth="1.6" strokeDasharray="18" strokeDashoffset="9"/></svg>
           <span style={{ fontSize: 12, color: T.textMuted }}>Rédaction du message…</span>
         </div>
@@ -2805,25 +2996,29 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
       )}
 
       {relance && (
-        <div style={{ marginTop: 10, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, position: "relative" }}>
-          <textarea
-            value={relance}
-            onChange={e => { setRelance(e.target.value); saveRelance(e.target.value); }}
-            rows={Math.max(3, relance.split("\n").length)}
-            style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", fontSize: 12, color: T.textSecondary, lineHeight: 1.7, fontFamily: "inherit", paddingRight: 60 }}
-          />
-          <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6 }}>
-            <button onClick={validateAndLog} disabled={validating} title="Marquer comme envoyé et ajouter à l'historique" aria-label="Valider" style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: validated ? "#DCFCE7" : T.bgCard, border: `1px solid ${validated ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: validating ? "wait" : "pointer", color: validated ? "#16A34A" : T.textMuted, transition: "all 0.2s", opacity: validating ? 0.6 : 1 }}>
-              {validating ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            </button>
-            <button onClick={copy} title="Copier" aria-label="Copier" style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: copied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}>
+        /* Le message (pleine largeur) | bouton ✨ « Régénérer » sur toute la hauteur du message — même design que la fiche d'un sujet */
+        <div data-message-row style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 12 }}>
+          <div style={{ flex: 1, minWidth: 0, padding: "10px 12px", background: "#F8F6FE", border: "1px solid #E4DEF5", borderRadius: 14, position: "relative" }}>
+            <textarea
+              data-message-text
+              value={relance}
+              onChange={e => { setRelance(e.target.value); saveRelance(e.target.value); }}
+              rows={3}
+              ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+              style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", overflow: "hidden", display: "block", fontSize: 15, color: "#4B4868", lineHeight: 1.65, fontFamily: "inherit", paddingRight: 46 }}
+            />
+            <button onClick={copy} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: copied ? "#DCFCE7" : T.bgCard, border: `1px solid ${copied ? "#16A34A40" : "#D9D3EE"}`, borderRadius: 10, cursor: "pointer", color: copied ? "#16A34A" : "#4B4868", transition: "all 0.2s" }}>
               {copied ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
               ) : (
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 9V2.8A1 1 0 014.5 1.8h6.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
               )}
             </button>
           </div>
+          <button onClick={generateRelance} disabled={loading} title="Régénérer" aria-label="Régénérer" style={{ width: 52, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: "#E5DDFB", border: "none", borderRadius: 16, cursor: loading ? "wait" : "pointer", transition: "background 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DBD0FA"; }} onMouseLeave={e => { e.currentTarget.style.background = "#E5DDFB"; }}>
+            {loading ? <svg width="16" height="16" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <span style={{ display: "flex", transform: "scale(1.6)" }}><IC.Sparkle /></span>}
+          </button>
         </div>
       )}
     </div>
@@ -3308,10 +3503,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
                 </span>
                 <span style={{ fontSize: 30, fontWeight: 800, color: T.textPrimary, letterSpacing: -1 }}>{counts[key] || 0}</span>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>{cfg.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: T.textMuted, marginTop: 3 }}>
-                {total > 0 ? Math.round(((counts[key] || 0) / total) * 100) : 0} % du total
-              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3, color: T.textPrimary }}>{cfg.label}</div>
             </Card>
           ))}
         </div>
