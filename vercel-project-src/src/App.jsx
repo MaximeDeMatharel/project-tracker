@@ -1097,12 +1097,20 @@ function TimelineEntry({ entry, isLast, onDelete, onEdit }) {
             </button>
           )}
           {hover && (
-            <div style={{ marginLeft: hasNote ? 0 : "auto", display: "flex", gap: 4 }}>
-              <button onClick={() => { setDraft({ type: entry.type, date: entry.date, text: entry.text, noteContent: entry.noteContent || "", waitingTag: entry.waitingTag || false }); setEditing(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2, opacity: 0.6, display: "flex", alignItems: "center" }} title="Modifier">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2-6 6H1.5v-2l6-6z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+            /* Boutons modifier / supprimer : toujours à la suite du titre, de la date et de la pastille « Note »
+               (marges verticales négatives : la hauteur de la ligne ne change pas au survol) */
+            <div data-entry-actions style={{ display: "flex", alignItems: "center", gap: 4, margin: "-6px 0 -6px 2px" }}>
+              <button data-entry-edit onClick={() => { setDraft({ type: entry.type, date: entry.date, text: entry.text, noteContent: entry.noteContent || "", waitingTag: entry.waitingTag || false }); setEditing(true); }} title="Modifier" aria-label="Modifier"
+                style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 8, cursor: "pointer", background: T.accentBg, color: T.accent, transition: "background 0.12s, color 0.12s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = T.accent; e.currentTarget.style.color = "#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = T.accentBg; e.currentTarget.style.color = T.accent; }}>
+                <svg width="12" height="12" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2-6 6H1.5v-2l6-6z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
               </button>
               {onDelete && (
-                <button onClick={() => onDelete(entry.id)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 2, opacity: 0.6, display: "flex", alignItems: "center" }} title="Supprimer">
+                <button data-entry-delete onClick={() => onDelete(entry.id)} title="Supprimer" aria-label="Supprimer"
+                  style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 8, cursor: "pointer", background: "#FEF0F0", color: "#DC2626", transition: "background 0.12s, color 0.12s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#DC2626"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "#FEF0F0"; e.currentTarget.style.color = "#DC2626"; }}>
                   <IC.Trash />
                 </button>
               )}
@@ -1737,7 +1745,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
-      <div style={{ padding: "30px 34px 24px", borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.bgCard }}>
+      <div style={{ padding: "15px 17px 12px", borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.bgCard }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
@@ -1933,7 +1941,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       )}
 
       {/* Timeline */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "26px 34px 30px", background: "#FBFAFF", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "13px 17px 15px", background: "#FBFAFF", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.4 }}>Historique</span>
@@ -2094,7 +2102,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
     <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0 }}>
       {/* ── List sidebar ── */}
       <div style={{ width: 452, flexShrink: 0, background: T.bg, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "34px 24px 14px", flexShrink: 0 }}>
+        <div style={{ padding: "17px 12px 7px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Sujets</div>
@@ -2120,7 +2128,7 @@ function SubjectsPage({ projects, onUpdate, onAdd, onDelete, onDeleteActivity, t
             {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 2, display: "flex" }}><IC.X /></button>}
           </div>
           </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "10px 24px 28px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "5px 12px 14px", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
           {filtered.length === 0
             ? <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "48px 0" }}>Aucun résultat</div>
             : Object.keys(STATUS_CONFIG).map(k => renderSection(k))
@@ -2948,7 +2956,9 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
       <div style={{ padding: "34px 40px 10px", flexShrink: 0 }}>
-        <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Activité</div>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.8 }}>Activité</div>
+        </div>
       </div>
 
 
@@ -2956,7 +2966,7 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
         {grouped.length === 0 ? (
           <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "60px 0" }}>Aucune activité trouvée</div>
         ) : (
-          <div style={{ maxWidth: 900 }}>
+          <div style={{ maxWidth: 900, margin: "0 auto" }}>
             {grouped.map((group, gi) => {
               const isExpanded = expandedWeeks?.has(group.weekStart);
               const totalDays = Math.min(5, group.entries.reduce((sum, e) => sum + (e.project.weeklyTime?.[group.weekStart] || 0), 0));
@@ -4013,4 +4023,3 @@ export default function App() {
     </>
   );
 }
-
