@@ -1804,19 +1804,12 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
         )}
 
         {/* Next action */}
-        <div style={{ marginTop: 22, padding: "16px 20px", background: T.accentBg, border: `1px solid ${T.accent}22`, borderRadius: 18 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.accent }}>Prochaine action</div>
-              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: aiLoading ? T.textMuted : `${T.accent}18`, border: "none", borderRadius: 12, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "all 0.15s" }}>
-                {aiLoading ? (
-                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
-                ) : (
-                  <IC.Sparkle />
-                )}
-              </button>
-            </div>
-            <EditableText
+        <div style={{ marginTop: 22, padding: 12, background: T.accentBg, border: `1px solid ${T.accent}22`, borderRadius: 18 }}>
+          {/* Rangée : colonne de texte (titre + description, en vertical) | colonne des boutons (collée en haut à droite) */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div data-box-text style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: T.accent, marginBottom: 2 }}>Prochaine action</div>
+              <EditableText
               value={project.nextAction || ""}
               onChange={v => patch({ nextAction: v })}
               placeholder="Définir la prochaine action…"
@@ -1825,19 +1818,35 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               minRows={2}
               style={{ fontSize: 14, color: T.accentText, fontWeight: 600, display: "block", width: "100%" }}
             />
-            {aiError && (
-              <div style={{ marginTop: 6, fontSize: 11, color: "#DC2626", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 6, padding: "5px 8px" }}>
+            </div>
+            <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <button onClick={suggestNextAction} disabled={aiLoading} title="Suggérer avec l'IA" aria-label="Suggérer avec l'IA" style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, background: aiLoading ? T.textMuted : `${T.accent}18`, border: "none", borderRadius: 12, cursor: aiLoading ? "wait" : "pointer", opacity: aiLoading ? 0.7 : 1, transition: "all 0.15s" }}>
+                {aiLoading ? (
+                  <svg width="12" height="12" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg>
+                ) : (
+                  <IC.Sparkle />
+                )}
+              </button>
+            </div>
+          </div>
+          {aiError && (
+              <div style={{ marginTop: 8, fontSize: 11, color: "#DC2626", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 6, padding: "5px 8px" }}>
                 ⚠️ {aiError}
               </div>
             )}
-          </div>
         </div>
 
         {/* Rédiger un message — bloc séparé */}
-        <div style={{ marginTop: 12, padding: "16px 20px", background: "#F8F5FF", border: "1px solid #7C3AED1F", borderRadius: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>Message à envoyer</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ marginTop: 12, padding: 12, background: "#F8F5FF", border: "1px solid #7C3AED1F", borderRadius: 18 }}>
+          {/* Rangée : colonne de texte (titre + description) | colonne des boutons (à droite) */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div data-box-text style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: "#7C3AED" }}>Message à envoyer</div>
+              {!genMessage && !genLoading && (
+                <div style={{ marginTop: 2, fontSize: 13, fontWeight: 500, color: "#7C3AE0A0" }}>Aucun message pour le moment</div>
+              )}
+            </div>
+            <div data-box-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               {genMessage && (
                 <button onClick={validateGenMessage} disabled={genValidating} title="Marquer comme fait et ajouter à l'historique" aria-label="Valider" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "4px 10px", height: 26, background: genValidated ? "#DCFCE7" : T.bgHover, border: `1px solid ${genValidated ? "#16A34A40" : T.border}`, borderRadius: 6, cursor: genValidating ? "wait" : "pointer", color: genValidated ? "#16A34A" : T.textSecondary, transition: "all 0.2s", opacity: genValidating ? 0.6 : 1 }}>
                   {genValidating ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : genValidated ? "✓" : <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -1854,9 +1863,6 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
             </div>
           </div>
 
-          {!genMessage && !genLoading && (
-            <div style={{ marginTop: 4, fontSize: 13, fontWeight: 500, color: "#7C3AE0A0" }}>Aucun message pour le moment</div>
-          )}
 
           {genError && !genLoading && (
             <div style={{ marginTop: 8, padding: "10px 12px", background: "#FEF2F2", border: "1px solid #DC262630", borderRadius: 8, fontSize: 11, color: "#DC2626" }}>
@@ -1865,14 +1871,14 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
           )}
 
           {genMessage && (
-            <div style={{ marginTop: 8, padding: "12px 14px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, position: "relative" }}>
+            <div style={{ marginTop: 8, padding: 10, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, position: "relative" }}>
               <textarea
                 value={genMessage}
                 onChange={e => { setGenMessage(e.target.value); saveGenMessage(e.target.value); }}
                 rows={Math.max(3, genMessage.split("\n").length)}
-                style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", fontSize: 12, color: T.textSecondary, lineHeight: 1.7, fontFamily: "inherit", paddingRight: 32 }}
+                style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", outline: "none", resize: "vertical", display: "block", fontSize: 12, color: T.textSecondary, lineHeight: 1.7, fontFamily: "inherit", paddingRight: 32 }}
               />
-              <button onClick={copyGenMessage} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: genCopied ? "#DCFCE7" : T.bgCard, border: `1px solid ${genCopied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: genCopied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}>
+              <button onClick={copyGenMessage} title="Copier" aria-label="Copier" style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: genCopied ? "#DCFCE7" : T.bgCard, border: `1px solid ${genCopied ? "#16A34A40" : T.border}`, borderRadius: 5, cursor: "pointer", color: genCopied ? "#16A34A" : T.textMuted, transition: "all 0.2s" }}>
                 {genCopied ? (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 ) : (
@@ -1962,7 +1968,7 @@ function SubjectCard({ project, isSelected, onClick }) {
   const platforms = Array.isArray(project.platforms) ? project.platforms : [];
   const last = sortEntries(project.timeline)[0];
   return (
-    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "16px 20px", background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: T.radiusCard, boxShadow: isSelected ? "0 0 0 4px rgba(117,80,227,0.10), " + T.shadowCard : T.shadowCard, cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s", outline: "none", marginBottom: 12, fontFamily: "inherit" }}
+    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: 14, background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: T.radiusCard, boxShadow: isSelected ? "0 0 0 4px rgba(117,80,227,0.10), " + T.shadowCard : T.shadowCard, cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s", outline: "none", marginBottom: 12, fontFamily: "inherit" }}
       onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; e.currentTarget.style.boxShadow = T.shadowHover; } }}
       onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = T.shadowCard; } }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
@@ -1974,11 +1980,8 @@ function SubjectCard({ project, isSelected, onClick }) {
             {project.priority && <PriorityStamp priority={project.priority} size="sm" />}
           </div>
           {/* Ligne 2 : le titre, seul sur sa ligne */}
-          <div data-card-title style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{project.title}</div>
+          <div data-card-title style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.2, lineHeight: 1.35, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: last ? 2 : 0 }}>{project.title}</div>
           {last && <div style={{ fontSize: 12.5, fontWeight: 500, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last.text}</div>}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-            {project.stakeholders?.length > 0 && <span style={{ fontSize: 10, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>}
-          </div>
         </div>
       </div>
     </button>
@@ -2167,13 +2170,13 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
   return (
     <div onClick={onOpen} style={{
       background: T.bgCard, border: `1.5px solid ${isSelected ? T.accent : "transparent"}`, borderRadius: 16,
-      padding: "16px 16px 14px", marginBottom: 12, cursor: "pointer",
-      boxShadow: isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : (isSelected ? "0 0 0 4px rgba(117,80,227,0.10), " + T.shadowCard : T.shadowCard),
+      padding: "12px 14px 11px", marginBottom: 6, cursor: "pointer",
+      boxShadow: isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : (isSelected ? "0 0 0 4px rgba(117,80,227,0.10)" : "none"),
       opacity: isDragging ? 0.5 : 1, transition: "box-shadow 0.15s, border-color 0.15s",
       userSelect: "none",
     }}
-    onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; e.currentTarget.style.boxShadow = T.shadowHover; } }}
-    onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = isDragging ? "0 14px 32px rgba(66,40,160,0.18)" : T.shadowCard; } }}>
+    onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = "rgba(117,80,227,0.35)"; } }}
+    onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = "transparent"; } }}>
       {/* Numéro Jira + plateformes */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
         <JiraKey value={project.jiraKey} size="sm" />
@@ -2207,8 +2210,7 @@ function KanbanCard({ project, onUpdate, isDragging, isSelected, onOpen }) {
 
       {/* Next action */}
       {project.nextAction && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "flex-start", gap: 6 }}>
-          <IC.Arrow />
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "flex-start" }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: T.accentText, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
         </div>
       )}
@@ -2223,18 +2225,18 @@ function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOv
   // Repère d'insertion : affiché avant la carte `beforeId` (ou en bas de colonne si beforeId est null)
   const lineAt = (beforeId) => isOver && dropBefore && dropBefore.status === column.key && dropBefore.beforeId === beforeId;
   const dropLine = (pos) => (
-    <div style={{ position: "absolute", left: 2, right: 2, [pos]: pos === "top" ? -5 : 3, height: 3, borderRadius: 2, background: cfg.color, boxShadow: `0 0 0 2px ${cfg.color}22`, pointerEvents: "none", zIndex: 2 }} />
+    <div style={{ position: "absolute", left: 2, right: 2, [pos]: pos === "top" ? -4 : 2, height: 3, borderRadius: 2, background: cfg.color, boxShadow: `0 0 0 2px ${cfg.color}22`, pointerEvents: "none", zIndex: 2 }} />
   );
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "rgba(117,80,227,0.05)", borderRadius: 22, padding: "16px 12px 4px", boxSizing: "border-box" }}
+      style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "rgba(117,80,227,0.05)", borderRadius: 22, padding: "14px 6px 4px", boxSizing: "border-box" }}
       onDragOver={e => { e.preventDefault(); setDragOver(column.key); onHoverSlot(column.key, null); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
       onDrop={e => { e.preventDefault(); setDragOver(null); onDrop(); }}
     >
       {/* Column header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 8px 14px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px 12px", flexShrink: 0 }}>
         <span style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
         <span style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{column.label}</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, background: "#FFFFFF", borderRadius: 999, padding: "2px 9px", boxShadow: "0 1px 2px rgba(66,40,160,0.06)" }}>{count}</span>
@@ -2242,7 +2244,7 @@ function KanbanColumn({ column, projects, onDragStart, onDragEnd, onDrop, dragOv
 
       {/* Cards zone */}
       <div style={{
-        flex: 1, overflowY: "auto", padding: "6px 2px 12px",
+        flex: 1, overflowY: "auto", padding: "4px 0 10px",
         background: isOver ? `${cfg.color}08` : "transparent",
         borderRadius: 10, border: `2px dashed ${isOver ? cfg.color + "40" : "transparent"}`,
         transition: "background 0.15s, border-color 0.15s", minHeight: 60,
@@ -2364,7 +2366,7 @@ function KanbanPage({ projects: allProjects, onUpdate, onReorder, onDelete, onDe
 
       {/* Board */}
       <div style={{ flex: 1, overflow: "auto", padding: "4px 40px 28px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 18, height: "calc(100% - 0px)", minHeight: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(0, 1fr))`, gap: 8, height: "calc(100% - 0px)", minHeight: 0 }}>
           {KANBAN_COLUMNS.map(col => (
             <KanbanColumn
               key={col.key}
@@ -2542,9 +2544,10 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
   }
 
   return (
-    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: "20px 24px", boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: 14, boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+        {/* Colonne de texte : tags, titre, prochaine action — empilés verticalement */}
+        <div data-card-text style={{ flex: 1, minWidth: 0 }}>
           {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
           <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 19, marginBottom: 10 }}>
             <JiraKey value={project.jiraKey} size="md" />
@@ -2556,11 +2559,10 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
             <span onClick={() => onNavigate("projects", project.id)} style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: T.textPrimary, cursor: "pointer" }}>{project.title}</span>
           </div>
           {/* Ligne 3 : la prochaine action */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 5, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{project.nextAction}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{project.nextAction}</div>
+        </div>
+        {/* Colonne des boutons : collée en bas à droite */}
+        <div data-card-actions style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               {message && (
                 <button onClick={validateAndLog} disabled={validating} title="Marquer comme fait et ajouter à l'historique" aria-label="Valider" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "4px 10px", background: validated ? "#DCFCE7" : T.bgHover, border: `1px solid ${validated ? "#16A34A40" : T.border}`, borderRadius: 6, cursor: validating ? "wait" : "pointer", color: validated ? "#16A34A" : T.textSecondary, transition: "all 0.2s", opacity: validating ? 0.6 : 1 }}>
                   {validating ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : validated ? "✓" : <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -2570,8 +2572,6 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               <button onClick={generateMessage} disabled={loading} title={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} aria-label={loading ? "Rédaction…" : message ? "Régénérer" : "Rédiger"} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
                 {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
               </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -2732,10 +2732,10 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
   }
 
   return (
-    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: "20px 24px", boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
+    <div {...cardHover} style={{ background: T.bgCard, border: "1.5px solid transparent", borderRadius: T.radiusCard, padding: 14, boxShadow: T.shadowCard, transition: "border-color 0.15s, box-shadow 0.15s" }}>
       {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+        <div data-card-text style={{ flex: 1, minWidth: 0 }}>
           {/* Ligne 1 : les tags (Jira, plateformes, puis priorité) — toujours présente, même sans tag */}
           <div data-dash-tags style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 18, marginBottom: 8 }}>
             <JiraKey value={project.jiraKey} size="sm" />
@@ -2748,15 +2748,18 @@ Exemple: "Relance envoyée à Sylvie sur la validation des tailles". Réponds un
           </div>
           {/* Ligne 3 : les interlocuteurs */}
           {project.stakeholders?.length > 0 && (
-            <span style={{ fontSize: 11, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
+            <span style={{ display: "block", fontSize: 11, lineHeight: 1.35, color: T.textMuted }}>{project.stakeholders.join(", ")}</span>
           )}
         </div>
-        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: wc.color, background: wc.bg, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" }}>
+        {/* Colonne de droite : délai + bouton, collés en bas à droite */}
+        <div data-card-actions style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: wc.color, background: wc.bg, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" }}>
           {days === 0 ? "Auj." : days === 1 ? "Hier" : days < 7 ? `${days}j` : days < 30 ? `${Math.floor(days / 7)} sem.` : `${Math.floor(days / 30)} mois`}
         </span>
         <button onClick={generateRelance} disabled={loading} title={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} aria-label={loading ? "Rédaction…" : relance ? "Régénérer" : "Relancer"} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: loading ? T.textMuted : T.accent, border: "none", borderRadius: 12, cursor: loading ? "wait" : "pointer", transition: "all 0.15s", boxShadow: loading ? "none" : "0 2px 6px rgba(117,80,227,0.3)" }}>
           {loading ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: "spin 1s linear infinite" }}><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="7"/></svg> : <IC.Sparkle />}
         </button>
+        </div>
       </div>
 
       {loading && !relance && (
@@ -3226,7 +3229,7 @@ function DashboardPage({ projects: allProjects, onNavigate, onUpdateProject }) {
         {/* ── Row 1 : Stat cards ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 34 }}>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-            <Card key={key} style={{ padding: "20px 22px" }}>
+            <Card key={key} style={{ padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <span style={{ width: 40, height: 40, borderRadius: 13, background: `${cfg.color}1A`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ width: 12, height: 12, borderRadius: "50%", background: cfg.color, display: "inline-block" }} />
@@ -4010,3 +4013,4 @@ export default function App() {
     </>
   );
 }
+
