@@ -1742,7 +1742,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div data-detail-scroll style={{ height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
       <div style={{ padding: "15px 17px 12px", borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.bgCard }}>
@@ -1959,7 +1959,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
       )}
 
       {/* Timeline */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "13px 17px 15px", background: "#FBFAFF", scrollbarWidth: "thin", scrollbarColor: `${T.border} transparent` }}>
+      <div data-detail-history style={{ flex: "1 0 auto", padding: "13px 17px 15px", background: "#FBFAFF" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, letterSpacing: -0.4 }}>Historique</span>
