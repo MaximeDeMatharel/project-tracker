@@ -831,7 +831,7 @@ function StatusBadge({ value, onChange }) {
 }
 
 // ─── EDITABLE FIELD ───────────────────────────────────────────────────────────
-function EditableText({ value, onChange, style = {}, multiline = false, placeholder = "", minRows = 3, enterToSave = false }) {
+function EditableText({ value, onChange, style = {}, multiline = false, placeholder = "", minRows = 3, enterToSave = false, allowEmpty = false, emptyStyle = {} }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef();
@@ -846,7 +846,8 @@ function EditableText({ value, onChange, style = {}, multiline = false, placehol
     if (doneRef.current) return;   // déjà enregistré (ex. Entrée puis perte de focus)
     doneRef.current = true;
     setEditing(false);
-    if (draft.trim() !== value) onChange(draft.trim() || value);
+    // allowEmpty : on peut vider le champ (sinon un texte vidé reprend sa valeur précédente, ex. le titre)
+    if (draft.trim() !== (value || "")) onChange(allowEmpty ? draft.trim() : (draft.trim() || value));
   }
 
   if (!editing) {
@@ -854,7 +855,7 @@ function EditableText({ value, onChange, style = {}, multiline = false, placehol
       <span onClick={() => setEditing(true)} title="Cliquer pour modifier" style={{ cursor: "text", borderBottom: "1px dashed transparent", transition: "border-color 0.15s", whiteSpace: multiline ? "pre-wrap" : "normal", ...style }}
         onMouseEnter={e => e.currentTarget.style.borderBottomColor = T.border}
         onMouseLeave={e => e.currentTarget.style.borderBottomColor = "transparent"}>
-        {value || <span style={{ color: T.textMuted, fontStyle: "italic" }}>{placeholder}</span>}
+        {value || <span data-empty-text style={{ color: T.textMuted, fontStyle: "italic", ...emptyStyle }}>{placeholder}</span>}
       </span>
     );
   }
@@ -1820,7 +1821,9 @@ Réponds UNIQUEMENT avec un JSON valide, sans backticks: {"type": "...", "text":
               <EditableText
               value={project.nextAction || ""}
               onChange={v => patch({ nextAction: v })}
-              placeholder="Définir la prochaine action…"
+              placeholder="Pas de prochaine action à faire"
+              allowEmpty
+              emptyStyle={{ color: "#A992EE", fontStyle: "normal", fontWeight: 500 }}
               multiline
               enterToSave
               minRows={2}
