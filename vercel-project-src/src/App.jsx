@@ -175,6 +175,8 @@ function projectToAirtableFields(p) {
   if (p.lastActivity) fields["Dernière activité"] = p.lastActivity;
   if (p.clientId) fields["Client"] = [p.clientId];
   fields["Personnes"] = getAssignees(p);
+  // Semaines où le sujet a été retiré de la page Activité (envoyé seulement s'il y en a : le champ reste facultatif)
+  if (p.activityHidden && p.activityHidden.length) fields["Semaines masquées"] = p.activityHidden.join(", ");
   return fields;
 }
 
@@ -186,6 +188,7 @@ const CHANGE_TO_AT_FIELDS = {
   jiraUrl: ["Lien Jira"], jiraKey: ["Clé Jira"], jiraLinks: ["Lien Jira", "Clé Jira"],
   figmaUrl: ["Lien Figma"], lastActivity: ["Dernière activité"], clientId: ["Client"],
   assignees: ["Personnes"], assignee: ["Personnes"], order: ["Ordre"],
+  activityHidden: ["Semaines masquées"],
 };
 function changedSujetFields(project, changedKeys) {
   const all = projectToAirtableFields(project);
@@ -221,6 +224,7 @@ function airtableFieldsToProject(record) {
     clientId: clientLinks[0] || null,
     assignees: Array.isArray(f["Personnes"]) ? f["Personnes"] : (f["Personnes"] ? [f["Personnes"]] : []),
     createdAt: record.createdTime,
+    activityHidden: String(f["Semaines masquées"] || "").split(",").map(s => s.trim()).filter(Boolean),
     timeline: [],
   };
 }
@@ -3134,10 +3138,49 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
     return weekStart;
   }
 
+  // Sujets retirés d'une semaine sur cette page (sans toucher à leur historique) : marqueurs « semaine@date du retrait ».
+  // Une activité enregistrée APRÈS le retrait, la même semaine, fait réapparaître le sujet.
+  // Chaque marqueur peut appartenir à une personne (« …|Prénom ») : la page Activité est propre à chacun.
+  // Un marqueur sans prénom vaut pour tout le monde.
+  const me = (user?.firstName || null);
+  function myMarks(p) {
+    return (p.activityHidden || []).map(String).map(s => { const [core, who] = s.split("|"); return { raw: s, core, who: who || null }; }).filter(m => !m.who || m.who === me);
+  }
+  function hiddenMarks(p) {
+    return myMarks(p).filter(m => m.core.includes("@")).map(m => { const [week, at] = m.core.split("@"); return { week, at: at || "9999" }; });
+  }
+  // Semaines où le sujet a été ajouté au compteur SANS activité dans l'historique (marqueur « +semaine »)
+  function addedWeeks(p) {
+    return myMarks(p).filter(m => m.core.startsWith("+")).map(m => m.core.slice(1));
+  }
+  // Marqueurs de cette semaine qui me concernent (à remplacer ou retirer)
+  function isMyWeekMark(raw, wk) {
+    const [core, who] = String(raw).split("|");
+    if (who && who !== me) return false;
+    return core === `+${wk}` || core.split("@")[0] === wk;
+  }
+  const tag = (core) => (me ? `${core}|${me}` : core);
+  function isHiddenEntry(e) {
+    const wk = getWeekStart(e.date);
+    return hiddenMarks(e.project).some(h => h.week === wk && String(e.createdAt || "") <= h.at);
+  }
+
   const allEntries = useMemo(() => {
-    return projects
+    const real = projects
       .flatMap(p => (p.timeline || []).map(e => ({ ...e, project: p })))
-      .filter(e => e.createdBy === user?.firstName)
+      .filter(e => !isHiddenEntry(e))
+      .filter(e => e.createdBy === user?.firstName);
+    // Sujets ajoutés au compteur d'une semaine sans activité dans l'historique : une carte « compteur » sans entrée réelle.
+    // Elle affiche la dernière activité connue du sujet, pour le reconnaître.
+    const pinned = [];
+    projects.forEach(p => {
+      addedWeeks(p).forEach(wk => {
+        if (real.some(e => e.project.id === p.id && getWeekStart(e.date) === wk)) return;
+        const last = sortEntries(p.timeline || [])[0];
+        pinned.push({ id: `pin-${p.id}-${wk}`, virtual: true, date: dateInWeek(wk), type: last ? last.type : "none", text: last ? last.text : "Pas encore d'activité dans l'historique", createdAt: "", createdBy: user?.firstName, project: p });
+      });
+    });
+    return [...real, ...pinned]
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         const tA = a.createdAt || a.id || "";
@@ -3301,8 +3344,8 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                         </div>
                         {/* Ligne 3 : la dernière activité */}
                         <div data-activity-text style={{ fontSize: 14, fontWeight: 500, color: T.textSecondary, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, marginRight: 8 }}>{cfg.label}</span>
-                          {e.text}
+                          {e.type !== "none" && <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, marginRight: 8 }}>{cfg.label}</span>}
+                          {e.type === "none" ? <span style={{ color: T.textMuted }}>{e.text}</span> : e.text}
                         </div>
                         <div style={{ position: "absolute", top: "50%", right: 20, transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 8 }} onClick={ev => ev.stopPropagation()}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, background: T.bgHover, borderRadius: 999, padding: "3px 4px" }}>
@@ -3334,8 +3377,8 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                           </div>
                           <button
                             onClick={() => setConfirmDeleteEntry(e)}
-                            aria-label="Supprimer cette activité"
-                            title="Supprimer cette activité"
+                            aria-label="Retirer de cette semaine"
+                            title="Retirer de cette semaine (l'activité reste dans l'historique du sujet)"
                             style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", borderRadius: "50%", color: T.textXMuted, cursor: "pointer", transition: "color 0.12s, background 0.12s" }}
                             onMouseEnter={ev => { ev.currentTarget.style.color = "#C5221F"; ev.currentTarget.style.background = "#FCE8E6"; }}
                             onMouseLeave={ev => { ev.currentTarget.style.color = T.textXMuted; ev.currentTarget.style.background = "transparent"; }}
@@ -3363,21 +3406,12 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
                       weekLabel={group.weekStart === currentWeekStart ? "semaine en cours" : formatWeekLabel(group.weekStart)}
                       onClose={() => setAddPickerWeek(null)}
                       onAdd={(project) => {
-                        const entryDate = group.weekStart === currentWeekStart ? today() : dateInWeek(group.weekStart);
-                        const history = project.timeline || [];
-                        // On recopie la dernière activité du sujet telle quelle (type et texte), même s'il s'agit d'une relance ou d'un retour.
-                        // Seul un sujet sans aucun historique reçoit une « Mise à jour » vide.
-                        const source = sortEntries(history)[0];
-                        const newEntry = {
-                          id: `e${Date.now()}`,
-                          type: source?.type || "update",
-                          date: entryDate,
-                          text: source?.text || "",
-                          createdAt: new Date().toISOString(),
-                          createdBy: user?.firstName || null,
-                        };
-                        const nextTimeline = [...history, newEntry];
-                        onUpdateProject(project.id, { timeline: nextTimeline, lastActivity: latestDate(nextTimeline) });
+                        const wk = group.weekStart;
+                        const others = (project.activityHidden || []).filter(m => !isMyWeekMark(m, wk));
+                        const hasReal = (project.timeline || []).some(te => getWeekStart(te.date) === wk);
+                        // Ajout au compteur de jours de la semaine, SANS créer d'activité dans l'historique du sujet :
+                        // s'il a déjà des activités cette semaine (masquées), on les réaffiche ; sinon on ajoute le marqueur « +semaine ».
+                        onUpdateProject(project.id, { activityHidden: hasReal ? others : [...others, tag(`+${wk}`)] });
                         setAddPickerWeek(null);
                       }}
                     />
@@ -3393,17 +3427,20 @@ function ActivityPage({ projects, onNavigate, onUpdateProject }) {
 
       {confirmDeleteEntry && (
         <ConfirmModal
-          title="Supprimer le ticket des activités de cette semaine ?"
-          message={`${confirmDeleteEntry.project.title}${confirmDeleteEntry.project.jiraKey ? ` — ${confirmDeleteEntry.project.jiraKey}` : ""}`}
-          confirmLabel="Supprimer"
+          title="Retirer ce sujet de la semaine ?"
+          message={`${confirmDeleteEntry.project.title}${confirmDeleteEntry.project.jiraKey ? ` — ${confirmDeleteEntry.project.jiraKey}` : ""}. Il ne sera plus compté dans cette semaine, mais son activité reste dans l'historique du sujet.`}
+          confirmLabel="Retirer"
           onCancel={() => setConfirmDeleteEntry(null)}
           onConfirm={() => {
-            const nextTimeline = confirmDeleteEntry.project.timeline.filter(te => te.id !== confirmDeleteEntry.id);
-            onUpdateProject(confirmDeleteEntry.project.id, {
-              timeline: nextTimeline,
-              lastActivity: latestDate(nextTimeline),
-            });
+            const p = confirmDeleteEntry.project;
+            const wk = getWeekStart(confirmDeleteEntry.date);
+            // on enlève les marqueurs de cette semaine ; s'il y a de vraies activités cette semaine, on les masque (date du retrait = maintenant)
+            const others = (p.activityHidden || []).filter(m => !isMyWeekMark(m, wk));
+            const hasReal = (p.timeline || []).some(te => getWeekStart(te.date) === wk);
+            onUpdateProject(p.id, { activityHidden: hasReal ? [...others, tag(`${wk}@${new Date().toISOString()}`)] : others });
             setConfirmDeleteEntry(null);
+            setSnackbar("Retiré de la semaine · l'activité reste dans l'historique du sujet");
+            setTimeout(() => setSnackbar(null), 2600);
           }}
         />
       )}
